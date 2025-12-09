@@ -105,8 +105,9 @@ public class HiloServidor extends Thread {
         }
 
         // ------------------ MENSAJES DE LOBBY -------------------
-        if (msg.startsWith("SKIN_RIVAL") || msg.startsWith("READY_SKIN") || msg.startsWith("CFG_")) {
+        if (msg.startsWith("SKIN_RIVAL") || msg.startsWith("READY") || msg.startsWith("CFG_")) {
             enviarATodosMenos(msg, remitente);
+            System.out.println("CLIENTE " + remitente.id + " : " + msg);
             return;
         }
 
