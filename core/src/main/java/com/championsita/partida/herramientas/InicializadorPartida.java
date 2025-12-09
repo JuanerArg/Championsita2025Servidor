@@ -33,15 +33,7 @@ public class InicializadorPartida {
         // 2. SISTEMAS INTERNOS
         base.fisica = new SistemaFisico();
         base.colisiones = new SistemaColisiones();
-        base.partido = new SistemaPartido(pantallaPartida);
-
-        // 3. VISUALES BASE
-        base.batch = new SpriteBatch();
-        base.rendererFormas = new ShapeRenderer();
-        base.viewport = new FitViewport(Constantes.MUNDO_ANCHO, Constantes.MUNDO_ALTO);
-
-        // 4. TEXTURA CANCHA
-        base.texturaCancha = new Texture("campos/campo" + config.campo.getNombre() + ".png");
+        base.partido = new SistemaPartido();
 
         return base;
     }

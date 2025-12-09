@@ -4,8 +4,6 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 import com.championsita.Principal;
 import com.championsita.jugabilidad.modelo.Personaje;
-import com.championsita.menus.menucarga.Carga;
-import com.championsita.menus.menueleccion.Doble;
 
 public class EntradaJugador implements InputProcessor {
 

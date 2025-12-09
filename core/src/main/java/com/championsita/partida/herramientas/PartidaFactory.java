@@ -1,12 +1,8 @@
 package com.championsita.partida.herramientas;
 
-import com.badlogic.gdx.graphics.Texture;
-import com.championsita.partida.herramientas.Config;
-import com.championsita.jugabilidad.constantes.Constantes;
 import com.championsita.jugabilidad.modelo.*;
 import com.championsita.jugabilidad.personajes.Normal;
-import com.championsita.jugabilidad.visuales.*;
-import com.championsita.partida.herramientas.MundoPartida;
+import com.championsita.jugabilidad.constantes.Constantes;
 
 import java.util.ArrayList;
 
@@ -16,38 +12,24 @@ public class PartidaFactory {
 
         MundoPartida mundo = new MundoPartida();
 
-        // Cancha
-        Texture canchaTexture = new Texture("campos/campo" + config.campo.getNombre() + ".png");
-        mundo.cancha = new Cancha(0.5f, 0.8f, canchaTexture);
+        mundo.cancha = new Cancha(0.5f, 0.8f);
 
-        // Jugadores
         mundo.jugadores = new ArrayList<>();
-        mundo.dibujadoresJugadores = new ArrayList<>();
 
-        for (int i = 0; i < config.skinsJugadores.size(); i++) {
-            Personaje p = new Normal(
-                    "Jugador" + (i + 1),
-                    ConfiguracionPersonaje.porDefecto(config.skinsJugadores.get(i)),
-                    Constantes.ESCALA_PERSONAJE
-            );
+        for (int i = 0; i < config.equiposJugadores.size(); i++) {
 
-            Equipo equipo = config.equiposJugadores.isEmpty()
-                    ? (i == 0 ? Equipo.ROJO : Equipo.AZUL)
-                    : config.equiposJugadores.get(i);
+            Equipo equipo = config.equiposJugadores.get(i);
 
-            p.setEquipo(equipo);
+            Personaje pj =
+                    new Normal("Jugador" + (i + 1), equipo);
 
-            mundo.jugadores.add(p);
-            mundo.dibujadoresJugadores.add(new DibujadorJugador(p));
+            mundo.jugadores.add(pj);
         }
 
-        // Pelota
         mundo.pelota = new Pelota(
-                Constantes.MUNDO_ANCHO / 2f,
-                Constantes.MUNDO_ALTO / 2f,
-                Constantes.ESCALA_PELOTA
+                Constantes.MUNDO_ANCHO/2f,
+                Constantes.MUNDO_ALTO/2f
         );
-        mundo.dibPelota = new DibujadorPelota(mundo.pelota);
 
         return mundo;
     }

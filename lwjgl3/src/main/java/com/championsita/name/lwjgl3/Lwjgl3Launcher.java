@@ -1,5 +1,6 @@
 package com.championsita.name.lwjgl3;
 
+import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.championsita.Principal;
@@ -12,7 +13,7 @@ public class Lwjgl3Launcher {
     }
 
     private static Lwjgl3Application createApplication() {
-        return new Lwjgl3Application(new Principal(), getDefaultConfiguration());
+        return new Lwjgl3Application((ApplicationListener) new Principal(), getDefaultConfiguration());
     }
 
     private static Lwjgl3ApplicationConfiguration getDefaultConfiguration() {

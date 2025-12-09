@@ -1,99 +1,66 @@
 package com.championsita.partida.modosdejuego.implementaciones;
 
-import com.badlogic.gdx.*;
+import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.championsita.jugabilidad.modelo.Equipo;
 import com.championsita.jugabilidad.modelo.HabilidadesEspeciales;
 import com.championsita.jugabilidad.modelo.Personaje;
 import com.championsita.partida.modosdejuego.ControladorPosicionesIniciales;
-
+import com.championsita.partida.modosdejuego.implementaciones.ModoBase;
 import java.util.ArrayList;
 
-
+/**
+ * Versión headless del modo especial.
+ * No utiliza entrada gráfica ni selección de habilidades desde menú.
+ * El servidor únicamente aplica habilidades ya definidas.
+ */
 public class ModoEspecial extends ModoBase {
 
-    private InputMultiplexer multiplexer;
-    private final ArrayList<Personaje> ordenSeleccion = new ArrayList<>();
-    private final ArrayList<HabilidadesEspeciales> habilidadesDisponibles = new ArrayList<>();
-    private final ArrayList<HabilidadesEspeciales> habilidadesUsadas = new ArrayList<>();
-    private int indice = 0;
-    private boolean seleccionTerminada = false;
+    private final ArrayList<Personaje> jugadoresEnOrden = new ArrayList<>();
 
     @Override
     protected void onIniciar() {
 
-        multiplexer = new InputMultiplexer();
-
-        // asegurarse de que tengan equipo
+        // asegurar equipos
         if (ctx.jugadores.get(0).getEquipo() == null) {
             ctx.jugadores.get(0).setEquipo(Equipo.ROJO);
             ctx.jugadores.get(1).setEquipo(Equipo.AZUL);
         }
 
-        ordenSeleccion.addAll(ctx.controlador.getJugadoresDelEquipo(Equipo.ROJO));
-        ordenSeleccion.addAll(ctx.controlador.getJugadoresDelEquipo(Equipo.AZUL));
+        // orden por equipo
+        jugadoresEnOrden.addAll(ctx.controlador.getJugadoresDelEquipo(Equipo.ROJO));
+        jugadoresEnOrden.addAll(ctx.controlador.getJugadoresDelEquipo(Equipo.AZUL));
 
-        for (HabilidadesEspeciales h : HabilidadesEspeciales.values()) {
-            if (h != HabilidadesEspeciales.NEUTRO)
-                habilidadesDisponibles.add(h);
-        }
+        // posicionar jugadores sin multiplexer (headless)
+        ControladorPosicionesIniciales.posicionar(ctx);
 
-        ControladorPosicionesIniciales.PosicionarJugadoresYPelota(ctx, multiplexer);
+        // asignar habilidades si el cliente/env/config las definió
+        aplicarHabilidadesIniciales();
     }
 
-    @Override
-    public void actualizar(float delta) {
+    /**
+     * En el servidor no existe una selección por menú.
+     * Las habilidades deben venir en ctx.habilidadesEspeciales
+     * o definirse mediante configuración previa.
+     */
+    private void aplicarHabilidadesIniciales() {
+        if (ctx.habilidadesEspeciales == null || ctx.habilidadesEspeciales.isEmpty()) return;
 
-        if (!seleccionTerminada) {
-            seleccionarHabilidadesEspeciales();
-        }
+        int count = Math.min(jugadoresEnOrden.size(), ctx.habilidadesEspeciales.size());
 
-        super.actualizar(delta); // el resto es igual para todos
-    }
+        for (int i = 0; i < count; i++) {
+            Personaje pj = jugadoresEnOrden.get(i);
+            HabilidadesEspeciales hab = ctx.habilidadesEspeciales.get(i);
 
-    private void seleccionarHabilidadesEspeciales() {
-        // jugador actual que debe elegir
-        Personaje pj = ordenSeleccion.get(indice);
-
-        // lista de habilidades seleccionadas desde el menú
-        ArrayList<HabilidadesEspeciales> elecciones = ctx.habilidadesEspeciales;
-
-        if (!elecciones.isEmpty()) {
-
-            HabilidadesEspeciales habilidadElegida = elecciones.get(indice);
-
-            // asignar sin restricciones
-            pj.asignarHabilidad(habilidadElegida);
-            pj.aplicarEfectosPermanentesDeHabilidad();
-            indice++;
-
-            if (indice >= ordenSeleccion.size()) seleccionTerminada = true;
-
-//            boolean usada = habilidadesUsadas.contains(habilidadElegida);
-//
-//            // condición original pero corregida
-//            if (habilidadElegida == HabilidadesEspeciales.NEUTRO || !usada) {
-//
-//                // asignar
-//                pj.asignarHabilidad(habilidadElegida);
-//                pj.aplicarEfectosPermanentesDeHabilidad();
-//
-//                if (habilidadElegida != HabilidadesEspeciales.NEUTRO)
-//                    habilidadesUsadas.add(habilidadElegida);
-//
-//                // siguiente jugador
-//                indice++;
-//
-//                if (indice >= ordenSeleccion.size()) {
-//                    seleccionTerminada = true;
-//                }
-//            }
-
+            if (hab != HabilidadesEspeciales.NEUTRO) {
+                pj.asignarHabilidad(hab);
+                pj.aplicarEfectosPermanentesDeHabilidad();
+            }
         }
     }
 
     @Override
     public InputProcessor getProcesadorEntrada() {
-        return multiplexer;
+        return null;
     }
 }
-

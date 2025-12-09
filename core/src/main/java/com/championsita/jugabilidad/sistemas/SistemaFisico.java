@@ -1,111 +1,42 @@
 package com.championsita.jugabilidad.sistemas;
 
-import com.badlogic.gdx.math.Vector2;
-import com.championsita.jugabilidad.modelo.Arco;
 import com.championsita.jugabilidad.modelo.Cancha;
-import com.championsita.jugabilidad.modelo.Pelota;
 import com.championsita.jugabilidad.modelo.Personaje;
+import com.championsita.jugabilidad.modelo.Pelota;
 
 public class SistemaFisico {
 
-    /* Avanza animaciones/estado del personaje*/
-    public void actualizarPersonaje(Personaje p, float delta) {
-        p.actualizar(delta);
-    }
 
-    /* Mantiene al personaje dentro del área del mundo. */
+    /** Mantiene al personaje dentro del mundo. */
     public void limitarPersonajeAlMundo(Personaje p, float anchoMundo, float altoMundo) {
-        p.limitarMovimiento(anchoMundo, altoMundo);
-    }
-    /* Mantiene la pelota dentro del área del mundo. */
-    public void rebotarLaPelotaEnLosBordes(Pelota pelota, float anchoMundo, float altoMundo, Cancha cancha) {
+        float x = p.getX();
+        float y = p.getY();
 
-        // Tamaño efectivo de la pelota (la mitad, para chequear bordes)
-        float pelotaHalfWidth  = pelota.getWidth();
-        float pelotaHalfHeight = pelota.getHeight();
+        if (x < 0) x = 0;
+        if (x > anchoMundo - p.getAncho()) x = anchoMundo - p.getAncho();
+        if (y < 0) y = 0;
+        if (y > altoMundo - p.getAlto()) y = altoMundo - p.getAlto();
 
-        // Posición actual
-        float pelotaX = pelota.getX();
-        float pelotaY = pelota.getY();
-
-        // --- EJE X: Rebote en paredes izquierda y derecha ---
-
-        boolean tocaIzquierdaPared  = pelotaX < pelotaHalfWidth;
-        boolean tocaDerechaPared = pelotaX > anchoMundo - pelotaHalfWidth;
-
-        Arco arcoIzquierdo = cancha.getArcoIzquierdo();
-        boolean dentroArcoIzquierdo =
-                pelotaY > arcoIzquierdo.getY() &&
-                        pelotaY < arcoIzquierdo.getY() + arcoIzquierdo.getHeight() &&
-                        pelotaX < arcoIzquierdo.getX() + arcoIzquierdo.getWidth();
-
-        if (!dentroArcoIzquierdo) {
-            if (tocaIzquierdaPared) {
-                pelota.setX(pelotaHalfWidth);
-                pelota.setVelocidadX(-Pelota.getFuerzaDisparo());
-                pelota.limpiarContacto();
-            }
-        }
-
-
-        if (tocaDerechaPared) {
-            pelota.setX(anchoMundo - pelotaHalfWidth);
-            pelota.setVelocidadX(-Pelota.getFuerzaDisparo());
-            pelota.limpiarContacto();
-        }
-
-        // --- EJE Y: Rebote en paredes inferior y superior ---
-
-        boolean tocaAbajoPared = pelotaY < pelotaHalfHeight;
-        boolean tocaArribaPared    = pelotaY > altoMundo - pelotaHalfHeight;
-
-        if (tocaAbajoPared) {
-            pelota.setY(pelotaHalfHeight);
-            pelota.setVelocidadY(-Pelota.getFuerzaDisparo());
-            pelota.limpiarContacto();
-        }
-
-        if (tocaArribaPared) {
-            pelota.setY(altoMundo - pelotaHalfHeight);
-            pelota.setVelocidadY(-Pelota.getFuerzaDisparo());
-            pelota.limpiarContacto();
-        }
+        p.setPosicion(x, y);
     }
 
-    /* Avanza la física/animación de la pelota (sólo una vez por frame). */
+    /** Avanza física básica de la pelota. */
     public void actualizarPelota(Pelota pelota, float delta) {
-
         pelota.actualizar(delta);
+    }
 
-        float vx = pelota.getVelocidadX();
-        float vy = pelota.getVelocidadY();
+    /** Rebote básico en servidor (no analiza texturas ni gráficos). */
+    public void rebotarPelota(Pelota pelota, float anchoMundo, float altoMundo, Cancha cancha) {
 
-        // === Apagar comba cuando la pelota está lenta ===
-        float vel = (float)Math.sqrt(vx*vx + vy*vy);
-        if (vel < 1.0f) {
-            pelota.setCurvaActiva(false, 0);
-        }
+        float x = pelota.getX();
+        float y = pelota.getY();
+        float w = pelota.getHitbox().width;
+        float h = pelota.getHitbox().height;
 
-        // === 1) Aplicar comba SI está activa ===
-        if (pelota.curvaActiva) {
+        if (x < 0)          pelota.setPosicion(0, y);
+        if (x > anchoMundo - w) pelota.setPosicion(anchoMundo - w, y);
 
-            float curvaBase = 0.045f;
-            float curva = curvaBase * pelota.curvaSigno;
-
-            float nvx = vx - vy * curva;
-            float nvy = vy + vx * curva;
-
-            vx = nvx;
-            vy = nvy;
-        }
-
-
-        // === 2) Aplicar FRENADO (fricción) ===
-        float friccion = 0.98f;  // ajustable
-        vx *= friccion;
-        vy *= friccion;
-
-        // === 3) Guardar velocidades finales ===
-        pelota.setVelocidad(vx, vy);
+        if (y < 0)          pelota.setPosicion(x, 0);
+        if (y > altoMundo - h) pelota.setPosicion(x, altoMundo - h);
     }
 }

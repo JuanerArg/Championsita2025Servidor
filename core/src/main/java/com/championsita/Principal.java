@@ -1,73 +1,74 @@
 package com.championsita;
 
-import com.badlogic.gdx.Game;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.championsita.menus.menuprincipal.Inicial;
-import com.championsita.menus.menuprincipal.Menu;
+import com.championsita.jugabilidad.modelo.Equipo;
+import com.championsita.partida.ControladorDePartida;
+import com.championsita.partida.herramientas.Config;
+import com.championsita.red.HiloServidor;
 
-public class Principal extends Game {
+public class Principal {
 
-    private SpriteBatch batch;
-    private Menu menu;
-    private float volumenMusica;
-    private int indiceMusica;
-    private Color accionColor;
+    public static void main(String[] args) {
 
-    @Override
-    public void create() {
-        this.batch = new SpriteBatch();
-        this.volumenMusica = 0.09f;
-        this.indiceMusica = 1;
-        this.accionColor = new Color(0, 1, 0, 1);
-        this.menu = new Inicial(this);
-        this.actualizarPantalla(this.menu);
-    }
+        System.out.println("=== Servidor Championsita Iniciando ===");
 
-    public SpriteBatch getBatch() {
-        return this.batch;
-    }
+        try {
+            // ================================
+            // CREAR CONFIG MINIMA VÁLIDA
+            // ================================
+            Config config = new Config.Builder()
+                    .modo("1v1")
+                    .goles(1)
+                    .tiempo(60)
+                    .agregarEquipo(Equipo.ROJO)
+                    .agregarEquipo(Equipo.AZUL)
+                    .build();
 
-    public void actualizarPantalla(Screen futuraPantalla) {
-        Screen anterior = getScreen();
-        if (futuraPantalla == anterior) return;
 
-        setScreen(futuraPantalla);
+            // ================================
+            // CONTROLADOR DE PARTIDA
+            // ================================
+            ControladorDePartida controlador = new ControladorDePartida(config);
 
-        // Esperar al siguiente frame para liberar la anterior
-        if (anterior != null && anterior != futuraPantalla) {
-            Gdx.app.postRunnable(anterior::dispose);
+            // ================================
+            // HILO SERVIDOR UDP
+            // ================================
+            HiloServidor servidor = new HiloServidor();
+            servidor.start();
+
+            System.out.println("Servidor iniciado correctamente.");
+            System.out.println("Esperando conexiones...");
+
+            // ================================
+            // LOOP DE SIMULACIÓN
+            // ================================
+            iniciarLoopSimulacion(controlador);
+
+        } catch (Exception e) {
+            System.err.println("ERROR al iniciar el servidor:");
+            e.printStackTrace();
         }
     }
 
-    @Override
-    public void dispose() {
-        this.batch.dispose();
-    }
+    private static void iniciarLoopSimulacion(ControladorDePartida controlador) {
+        new Thread(() -> {
+            long last = System.nanoTime();
+            final long FRAME_TIME = 16_666_666; // ~60 ticks por segundo
 
-    public void setVolumenMusica(float volumenMusica) {
-        this.volumenMusica = volumenMusica;
-    }
+            while (true) {
+                long now = System.nanoTime();
+                float delta = (now - last) / 1_000_000_000f;
 
-    public float getVolumenMusica() {
-        return this.volumenMusica;
-    }
+                controlador.tick(delta);
 
-    public void setIndiceMusica(int indiceMusica) {
-        this.indiceMusica = indiceMusica;
-    }
+                last = now;
 
-    public int getIndiceMusica() {
-        return this.indiceMusica;
-    }
-
-    public void setAccionColor(Color accionColor) {
-        this.accionColor = accionColor;
-    }
-
-    public Color getAccionColor() {
-        return this.accionColor;
+                long sleep = FRAME_TIME - (System.nanoTime() - now);
+                if (sleep > 0) {
+                    try {
+                        Thread.sleep(sleep / 1_000_000);
+                    } catch (InterruptedException ignored) {}
+                }
+            }
+        }, "Servidor-TickLoop").start();
     }
 }

@@ -16,9 +16,6 @@ public interface ModoDeJuego {
     // Actualiza la lógica del modo (entradas, físicas, reglas, etc).
     void actualizar(float delta);
 
-    // Dibuja elementos adicionales del modo (HUD, textos, etc).
-    void renderizar(SpriteBatch batch);
-
     // Devuelve el procesador de entrada activo del modo.
     InputProcessor getProcesadorEntrada();
 

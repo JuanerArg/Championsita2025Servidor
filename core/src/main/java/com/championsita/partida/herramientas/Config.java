@@ -2,71 +2,68 @@ package com.championsita.partida.herramientas;
 
 import com.championsita.jugabilidad.modelo.Equipo;
 import com.championsita.jugabilidad.modelo.HabilidadesEspeciales;
-import com.championsita.menus.compartido.OpcionDeGoles;
-import com.championsita.menus.compartido.OpcionDeTiempo;
-import com.championsita.menus.menucarga.Campo;
 
 import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * Configuración puramente lógica del servidor.
+ * No depende de menús, skins ni campos gráficos.
+ */
 public class Config {
-    public final ArrayList<String> skinsJugadores;
-    public final Campo campo;
-    public final OpcionDeGoles goles;
-    public final OpcionDeTiempo tiempo;
-    public final String modo; // "practica", "1v1", etc.
-    public final ArrayList<Equipo> equiposJugadores; // ← NUEVO
-    public ArrayList<HabilidadesEspeciales> habilidadesEspeciales;
+
+    public final String modo; // "1v1", "practica", "especial"
+    public final int golesParaGanar;
+    public final float tiempoPartido; // en segundos
+    public final List<Equipo> equiposJugadores;
+    public final ArrayList<HabilidadesEspeciales> habilidadesEspeciales;
 
     private Config(Builder b) {
-        this.skinsJugadores = b.skinsJugadores;
-        this.campo = b.campo;
-        this.goles = b.goles;
-        this.tiempo = b.tiempo;
         this.modo = b.modo;
-        this.equiposJugadores = b.equiposJugadores; // ← NUEVO
-        if(modo.equals("especial")){
-            this.habilidadesEspeciales = b.habilidadesEspeciales;
-        }
+        this.golesParaGanar = b.golesParaGanar;
+        this.tiempoPartido = b.tiempoPartido;
+        this.equiposJugadores = new ArrayList<> (b.equiposJugadores);
+        this.habilidadesEspeciales = new ArrayList<> (b.habilidadesEspeciales);
     }
 
     public static class Builder {
-        public ArrayList<String> skinsJugadores = new ArrayList<>();
-        public ArrayList<Equipo> equiposJugadores = new ArrayList<>(); // ← NUEVO
-        private Campo campo;
-        private OpcionDeGoles goles = OpcionDeGoles.UNO;
-        private OpcionDeTiempo tiempo = OpcionDeTiempo.CORTO;
-        private String modo = "practica";
-        public ArrayList<HabilidadesEspeciales> habilidadesEspeciales = new ArrayList<>();
 
-        public Builder agregarSkin(String skin) {
-            this.skinsJugadores.add(skin);
+        private String modo = "1v1";
+        private int golesParaGanar = 1;
+        private float tiempoPartido = 60f; // valor default
+
+        private List<Equipo> equiposJugadores = new ArrayList<>();
+        private List<HabilidadesEspeciales> habilidadesEspeciales = new ArrayList<>();
+
+        public Builder modo(String m) {
+            this.modo = m;
             return this;
         }
 
-        // NUEVO: agregar equipo por jugador en el mismo orden que las skins
-        public Builder agregarEquipo(Equipo equipo) {
-            this.equiposJugadores.add(equipo);
+        public Builder goles(int g) {
+            this.golesParaGanar = g;
             return this;
         }
 
-        public Builder agregarHabilidades(ArrayList<HabilidadesEspeciales> habilidades) {
-            this.habilidadesEspeciales.addAll(habilidades);
+        public Builder tiempo(float tSegundos) {
+            this.tiempoPartido = tSegundos;
             return this;
         }
 
-        public Builder campo(Campo v) { this.campo = v; return this; }
-        public Builder goles(OpcionDeGoles v) { this.goles = v; return this; }
-        public Builder tiempo(OpcionDeTiempo v) { this.tiempo = v; return this; }
-        public Builder modo(String v) { this.modo = v; return this; }
+        public Builder agregarEquipo(Equipo e) {
+            this.equiposJugadores.add(e);
+            return this;
+        }
+
+        public Builder habilidades(List<HabilidadesEspeciales> h) {
+            this.habilidadesEspeciales.addAll(h);
+            return this;
+        }
 
         public Config build() {
-            if (skinsJugadores.isEmpty() || campo == null) {
-                throw new IllegalStateException("Faltan datos obligatorios en Config (skins/campo)");
-            }
 
-            // opcional: validar que, si se pasaron equipos, coincida la cantidad
-            if (!equiposJugadores.isEmpty() && equiposJugadores.size() != skinsJugadores.size()) {
-                throw new IllegalStateException("La cantidad de equipos no coincide con la de skins");
+            if (equiposJugadores.isEmpty()) {
+                throw new IllegalStateException("El servidor necesita asignar equipos a los jugadores.");
             }
 
             return new Config(this);
