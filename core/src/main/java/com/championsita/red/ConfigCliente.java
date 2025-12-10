@@ -77,12 +77,6 @@ public class ConfigCliente {
 
         public ConfigCliente build() {
 
-            if (c.skinsJugadores.isEmpty())
-                throw new IllegalStateException("ConfigCliente: faltan skins");
-
-            if (c.campo == null)
-                throw new IllegalStateException("ConfigCliente: falta campo");
-
             if (c.modo == null)
                 c.modo = "1v1";
 

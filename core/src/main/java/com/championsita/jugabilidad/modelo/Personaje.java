@@ -62,7 +62,7 @@ public class Personaje {
 
         // hitbox genérico centrado
         this.ancho = 0.6f;
-        this.alto  = 1.0f;
+        this.alto  = 0.6f;
 
         this.x = 1f;
         this.y = 1f;

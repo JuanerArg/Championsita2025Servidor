@@ -94,7 +94,7 @@ public class HiloServidor extends Thread {
         // -------------------- CONFIG FINAL -----------------------
         if (msg.startsWith("CFG_FINAL=")) {
 
-            ConfigCliente cfg = parsearConfigFinal(msg);
+            ConfigCliente cfg = procesarConfig(msg);
             configs.put(remitente.id, cfg);
 
             System.out.println("[SERVIDOR] Recibí config final del jugador " + remitente.id);
@@ -147,6 +147,9 @@ public class HiloServidor extends Thread {
         controlador = new ControladorDePartida(cfgServidor);
 
         // Avisar a los clientes que arranca la partida
+        String estado = controlador.generarEstado();
+        System.out.println(estado);
+        broadcast(estado);
         broadcast("PARTIDA_INICIADA");
 
         iniciarLoopServidor();
@@ -160,16 +163,17 @@ public class HiloServidor extends Thread {
 
         new Thread(() -> {
 
-            final float dt = 1f / 60f;
+            final float deltatiempo = 1f / 60f;
 
             while (true) {
 
-                controlador.tick(dt);
+                controlador.tick(deltatiempo);
 
                 String estado = controlador.generarEstado();
-                broadcast("STATE;" + estado);
+                System.out.println(estado);
+                broadcast(estado);
 
-                try { Thread.sleep(16); } catch (Exception ignored) {}
+                try { Thread.sleep(1000); } catch (Exception ignored) {}
             }
 
         }, "Servidor-Tick").start();
@@ -179,7 +183,7 @@ public class HiloServidor extends Thread {
     // ============================================================
     //  PARSEAR CFG_FINAL
     // ============================================================
-    private ConfigCliente parsearConfigFinal(String msg) {
+    private ConfigCliente procesarConfig(String msg) {
 
         msg = msg.substring("CFG_FINAL=".length());
         ConfigCliente cfg = new ConfigCliente();
@@ -196,7 +200,7 @@ public class HiloServidor extends Thread {
                 case "goles": cfg.goles = Integer.parseInt(kv[1]); break;
                 case "tiempo": cfg.tiempo = Integer.parseInt(kv[1]); break;
                 case "modo": cfg.modo = kv[1]; break;
-                case "skin": cfg.skinsJugadores.add(kv[1]); break;
+                    case "skin": cfg.skinsJugadores.add(kv[1]); break;
                 case "habilidad": cfg.habilidadesEspeciales.add(kv[1]); break;
             }
         }

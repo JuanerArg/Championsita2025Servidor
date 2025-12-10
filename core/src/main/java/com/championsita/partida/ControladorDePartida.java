@@ -199,9 +199,9 @@ public class ControladorDePartida {
      *      - ARC_D  → arco derecho
      *      - HUD    → marcador + tiempo
      */
-    public String generarEstado() {
+    public String    generarEstado() {
         StringBuilder sb = new StringBuilder();
-
+        sb.append("STATE");
         // -------------------------------------------------
         // Jugadores: J0: x=..,y=..,w=..,h=..,mov=0/1,dir=..,ta=..,st=..,stm=..
         // -------------------------------------------------
@@ -222,11 +222,10 @@ public class ControladorDePartida {
             float staminaActual = 100f;  // TODO: obtener de Personaje si existe
             float staminaMaxima = 100f;  // TODO: idem
 
-            if (sb.length() > 0) {
+            if (!sb.isEmpty()) {
                 sb.append(";");
             }
-
-            sb.append("J").append(i).append(":")
+            sb.append("J").append(i).append(",")
                     .append("x=").append(x).append(",")
                     .append("y=").append(y).append(",")
                     .append("w=").append(w).append(",")
@@ -251,7 +250,7 @@ public class ControladorDePartida {
             float stateTime = 0f; // TODO: si tu Pelota tiene un stateTime lógico
             int animar = 1;       // 1 = se anima / 0 = estática (ajustá si necesitas)
 
-            sb.append("PEL:")
+            sb.append("PEL").append(",")
                     .append("x=").append(px).append(",")
                     .append("y=").append(py).append(",")
                     .append("w=").append(pw).append(",")
@@ -270,7 +269,7 @@ public class ControladorDePartida {
 
             if (arcoIzq != null) {
                 if (sb.length() > 0) sb.append(";");
-                sb.append("ARC_I:")
+                sb.append("ARC_I").append(",")
                         .append("x=").append(arcoIzq.getX()).append(",")
                         .append("y=").append(arcoIzq.getY()).append(",")
                         .append("w=").append(arcoIzq.getWidth()).append(",")
@@ -279,7 +278,7 @@ public class ControladorDePartida {
 
             if (arcoDer != null) {
                 if (sb.length() > 0) sb.append(";");
-                sb.append("ARC_D:")
+                sb.append("ARC_D").append(",")
                         .append("x=").append(arcoDer.getX()).append(",")
                         .append("y=").append(arcoDer.getY()).append(",")
                         .append("w=").append(arcoDer.getWidth()).append(",")
@@ -295,12 +294,10 @@ public class ControladorDePartida {
 
             int golesRojo  = partido.getGolesRojo();  // Ajustá nombres de getters si hace falta
             int golesAzul  = partido.getGolesAzul();
-            //float tiempo   = partido.getTiempo();     // TODO: si tu SistemaPartido usa otro nombre, cámbialo
 
             sb.append("HUD:")
                     .append("gr=").append(golesRojo).append(",")
-                    .append("ga=").append(golesAzul).append(",");
-                    //.append("t=").append(tiempo);
+                    .append("ga=").append(golesAzul);
         }
 
         return sb.toString();
