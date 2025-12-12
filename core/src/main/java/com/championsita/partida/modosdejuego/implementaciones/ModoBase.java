@@ -41,8 +41,11 @@ public abstract class ModoBase implements ModoDeJuego {
     // LÓGICA DE ENTRADA
     // ------------------------------
     protected void actualizarEntrada(float delta) {
+
         for (EntradaJugador entrada : ctx.controles) {
-            if (entrada != null) entrada.actualizar(delta);
+            if (entrada != null) {
+                entrada.actualizar(delta);
+            }
         }
     }
 

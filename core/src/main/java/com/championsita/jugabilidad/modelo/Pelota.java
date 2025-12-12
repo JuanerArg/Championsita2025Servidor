@@ -8,8 +8,8 @@ public class Pelota {
     private float x, y;
 
     // Tamaño lógico (no visual, pero el cliente puede dibujar usando esto)
-    private float ancho = 0.3f;
-    private float alto  = 0.3f;
+    private float ancho = 0.25f;
+    private float alto  = 0.25f;
 
     // Velocidad
     private float vx = 0f;

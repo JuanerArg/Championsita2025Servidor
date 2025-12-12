@@ -1,11 +1,14 @@
 package com.championsita.red;
 
+import com.championsita.jugabilidad.entrada.EntradaJugador;
+import com.championsita.jugabilidad.entrada.InputServidor;
 import com.championsita.partida.ControladorDePartida;
 import com.championsita.partida.herramientas.Config;
 import com.championsita.red.ConfigFusionFactory;
 
 import java.net.*;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,6 +18,7 @@ public class HiloServidor extends Thread {
 
     // Jugadores conectados
     private final Map<Integer, Cliente> jugadores = new HashMap<>();
+    private final Map<Integer, InputServidor> inputs = new HashMap<>();
     private int ultimoID = 0;
 
     // Configs enviadas por los clientes
@@ -90,6 +94,10 @@ public class HiloServidor extends Thread {
         }
         remitente.ultimoMensaje = System.currentTimeMillis();
 
+        if(msg.startsWith("INPUT:")){
+            procesarInput(msg, remitente.id);
+
+        }
 
         // -------------------- CONFIG FINAL -----------------------
         if (msg.startsWith("CFG_FINAL=")) {
@@ -111,6 +119,10 @@ public class HiloServidor extends Thread {
             return;
         }
 
+        if(msg.startsWith("HAB_ESP:")){
+            //aca poner como guardamos las habilidades en los distintos jugadores
+        }
+
         // ---------------------- HEARTBEAT ------------------------
         if (msg.equals("PING")) {
             enviar("PONG", remitente.ip, remitente.puerto);
@@ -126,6 +138,30 @@ public class HiloServidor extends Thread {
         // --------------------- MENSAJES DE JUEGO ----------------
         if (controlador != null) {
             controlador.recibirMensaje(remitente.id, msg);
+        }
+    }
+
+    private void procesarInput(String msg, int id) {
+        String input = msg.substring("INPUT:".length());
+        String[] partes = input.split(",");
+
+        InputServidor inputServidor = inputs.get(id);
+        if(inputServidor == null) inputs.put(id, new InputServidor());
+
+        for (String p : partes) {
+            String[] keyValues = p.split("=");
+            if (keyValues.length != 2) continue;
+
+            boolean value = keyValues[1].equals("1");
+
+            switch (keyValues[0]) {
+                case "u": inputs.get(id).arriba    = value; break;
+                case "d": inputs.get(id).abajo     = value; break;
+                case "l": inputs.get(id).izquierda = value; break;
+                case "r": inputs.get(id).derecha   = value; break;
+                case "a": inputs.get(id).accion    = value; break;
+                case "s": inputs.get(id).sprint    = value; break;
+            }
         }
     }
 
@@ -147,6 +183,7 @@ public class HiloServidor extends Thread {
         controlador = new ControladorDePartida(cfgServidor);
 
         // Avisar a los clientes que arranca la partida
+        //controlador.
         String estado = controlador.generarEstado();
         System.out.println(estado);
         broadcast(estado);
@@ -162,18 +199,27 @@ public class HiloServidor extends Thread {
     private void iniciarLoopServidor() {
 
         new Thread(() -> {
-
-            final float deltatiempo = 1f / 60f;
+            long last = System.nanoTime();
 
             while (true) {
+                long now = System.nanoTime();
+                float delta = (now - last) / 1_000_000_000f;
+                final long FRAME_TIME = 16_666_666; // ~60 ticks por segundo
 
-                controlador.tick(deltatiempo);
+                controlador.tick(delta, new ArrayList<>(this.inputs.values()));
 
+
+                last = now;
                 String estado = controlador.generarEstado();
                 System.out.println(estado);
                 broadcast(estado);
 
-                try { Thread.sleep(1000); } catch (Exception ignored) {}
+                long sleep = FRAME_TIME - (System.nanoTime() - now);
+                if (sleep > 0) {
+                    try {
+                        Thread.sleep(sleep / 1_000_000);
+                    } catch (InterruptedException ignored) {}
+                }
             }
 
         }, "Servidor-Tick").start();
@@ -265,6 +311,11 @@ public class HiloServidor extends Thread {
             return muerto;
         });
     }
+
+    public ArrayList<InputServidor> getInputs(){
+        return new ArrayList<>(this.inputs.values());
+    }
+
 
 
     // ============================================================

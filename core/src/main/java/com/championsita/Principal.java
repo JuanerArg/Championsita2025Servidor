@@ -1,9 +1,13 @@
 package com.championsita;
 
+import com.championsita.jugabilidad.entrada.EntradaJugador;
+import com.championsita.jugabilidad.entrada.InputServidor;
 import com.championsita.jugabilidad.modelo.Equipo;
 import com.championsita.partida.ControladorDePartida;
 import com.championsita.partida.herramientas.Config;
 import com.championsita.red.HiloServidor;
+
+import java.util.ArrayList;
 
 public class Principal {
 
@@ -38,37 +42,11 @@ public class Principal {
             System.out.println("Servidor iniciado correctamente.");
             System.out.println("Esperando conexiones...");
 
-            // ================================
-            // LOOP DE SIMULACIÓN
-            // ================================
-            iniciarLoopSimulacion(controlador);
+
 
         } catch (Exception e) {
             System.err.println("ERROR al iniciar el servidor:");
             e.printStackTrace();
         }
-    }
-
-    private static void iniciarLoopSimulacion(ControladorDePartida controlador) {
-        new Thread(() -> {
-            long last = System.nanoTime();
-            final long FRAME_TIME = 16_666_666; // ~60 ticks por segundo
-
-            while (true) {
-                long now = System.nanoTime();
-                float delta = (now - last) / 1_000_000_000f;
-
-                controlador.tick(delta);
-
-                last = now;
-
-                long sleep = FRAME_TIME - (System.nanoTime() - now);
-                if (sleep > 0) {
-                    try {
-                        Thread.sleep(sleep / 1_000_000);
-                    } catch (InterruptedException ignored) {}
-                }
-            }
-        }, "Servidor-TickLoop").start();
     }
 }

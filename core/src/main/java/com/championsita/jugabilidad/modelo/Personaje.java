@@ -309,4 +309,12 @@ public class Personaje {
 
     public Equipo getEquipo() { return equipo; }
     public void setEquipo(Equipo eq) { this.equipo = eq; }
+
+    public float getTiempoAnimacion() {
+        return tiempoAnimacion;
+    }
+
+    public void setTiempoAnimacion(float tiempoAnimacion) {
+        this.tiempoAnimacion = tiempoAnimacion;
+    }
 }

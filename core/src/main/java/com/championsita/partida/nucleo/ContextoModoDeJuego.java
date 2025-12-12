@@ -36,7 +36,7 @@ public class ContextoModoDeJuego {
 
     // Entidades
     public ArrayList<Personaje> jugadores;
-    public ArrayList<EntradaJugador> controles = new ArrayList<>();
+    public ArrayList<EntradaJugador> controles;
     public Pelota pelota;
 
     public ContextoModoDeJuego(FitViewport viewport,
@@ -46,7 +46,8 @@ public class ContextoModoDeJuego {
                                SistemaColisiones colisiones,
                                SistemaPartido partido,
                                ArrayList<Personaje> jugadores,
-                               ControladorDePartida controlador) {
+                               ControladorDePartida controlador,
+                               ArrayList<EntradaJugador> controles) {
         this.viewport = viewport;
         this.batch = batch;
         this.cancha = cancha;
@@ -55,6 +56,7 @@ public class ContextoModoDeJuego {
         this.partido = partido;
         this.jugadores = jugadores;
         this.controlador = controlador;
+        this.controles = controles;
     }
 
     public ArrayList<HabilidadesEspeciales> habilidadesEspeciales = new ArrayList<>();
@@ -67,7 +69,8 @@ public class ContextoModoDeJuego {
                                SistemaPartido partido,
                                ArrayList<Personaje> jugadores,
                                ControladorDePartida controlador,
-                               ArrayList<HabilidadesEspeciales> habilidadesEspeciales) {
+                               ArrayList<HabilidadesEspeciales> habilidadesEspeciales,
+                               ArrayList<EntradaJugador> controles) {
         this.viewport = viewport;
         this.batch = batch;
         this.cancha = cancha;
@@ -77,5 +80,6 @@ public class ContextoModoDeJuego {
         this.jugadores = jugadores;
         this.controlador = controlador;
         this.habilidadesEspeciales.addAll(habilidadesEspeciales);
+        this.controles = controles;
     }
 }

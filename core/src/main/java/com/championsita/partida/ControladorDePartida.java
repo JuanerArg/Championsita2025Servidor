@@ -1,5 +1,7 @@
 package com.championsita.partida;
 
+import com.championsita.jugabilidad.entrada.EntradaJugador;
+import com.championsita.jugabilidad.entrada.InputServidor;
 import com.championsita.jugabilidad.modelo.Equipo;
 import com.championsita.jugabilidad.modelo.Pelota;
 import com.championsita.jugabilidad.modelo.Personaje;
@@ -18,7 +20,9 @@ import com.championsita.partida.modosdejuego.implementaciones.UnoContraUno;
 import com.championsita.partida.nucleo.ContextoModoDeJuego;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controlador de la partida en el SERVIDOR (headless).
@@ -41,6 +45,7 @@ public class ControladorDePartida {
 
     /** Entidades principales. */
     private final ArrayList<Personaje> jugadores = new ArrayList<>();
+    private ArrayList<EntradaJugador> inputJugadores;
     private Pelota pelota;
     private Cancha cancha;
 
@@ -59,7 +64,19 @@ public class ControladorDePartida {
         this.cancha = mundo.cancha;
         this.pelota = mundo.pelota;
         this.jugadores.addAll(mundo.jugadores);
-
+        this.inputJugadores = new ArrayList<>();
+        for (Personaje pj : jugadores) {
+            if (pj != null) {
+                // En servidor las teclas no importan, usamos dummy
+                EntradaJugador entrada = new EntradaJugador(
+                        pj,
+                        -1, -1, -1, -1, -1, -1  // códigos ficticios
+                );
+                inputJugadores.add(entrada);
+            } else {
+                inputJugadores.add(null);
+            }
+        }
         // ==================================================
         // 2) Crear sistemas lógicos
         // ==================================================
@@ -89,7 +106,8 @@ public class ControladorDePartida {
                     partido,
                     jugadores,
                     this,
-                    config.habilidadesEspeciales
+                    config.habilidadesEspeciales,
+                    inputJugadores
             );
 
         } else {
@@ -101,7 +119,8 @@ public class ControladorDePartida {
                     colisiones,
                     partido,
                     jugadores,
-                    this
+                    this,
+                    inputJugadores
             );
         }
 
@@ -139,11 +158,25 @@ public class ControladorDePartida {
     // =========================================================
     //  Tick de simulación (llamado desde un loop en el servidor)
     // =========================================================
-    public void tick(float delta) {
+    public void tick(float delta, ArrayList<InputServidor> inputJugadores) {
         if (modoJuego == null) return;
-
+        int i = 0;
+        for(Personaje j : jugadores){
+            jugadores.get(i).actualizar(delta);
+            i++;
+        }
+        if(inputJugadores.size() >= this.inputJugadores.size()) actualizarInputClientes(inputJugadores);
         // Si tus modos viejos también implementan ModoDeJuego, esto alcanza.
         modoJuego.actualizar(delta);
+    }
+
+    private void actualizarInputClientes(ArrayList<InputServidor> inputJugadores) {
+        int i = 0;
+
+        for(EntradaJugador ij : this.inputJugadores){
+            ij.aplicarInput(inputJugadores.get(i));
+            i++;
+        }
     }
 
     // =========================================================
@@ -209,6 +242,7 @@ public class ControladorDePartida {
             Personaje pj = jugadores.get(i);
             if (pj == null) continue;
 
+
             float x = pj.getX();         // Ajustá si tu Personaje usa otro getter
             float y = pj.getY();
             float w = pj.getAncho();     // Idem: si no existe, podés usar ancho fijo
@@ -216,11 +250,12 @@ public class ControladorDePartida {
 
             // Por ahora supongo que no tengo acceso directo al "estaMoviendo" ni "direccion"
             // de Personaje del servidor. Podés enriquecer esto más adelante.
-            int mov = 0;                 // 0 = quieto, 1 = moviendo (TODO)
-            String dir = "abajo";        // TODO: ajustar según tu lógica de dirección
-            float tiempoAnim = 0f;       // TODO: si querés mandar stateTime del personaje
-            float staminaActual = 100f;  // TODO: obtener de Personaje si existe
-            float staminaMaxima = 100f;  // TODO: idem
+            int mov = inputJugadores.get(i).getEstaMoviendose();                 // 0 = quieto, 1 = moviendo (TODO)
+            //System.out.println(mov);
+            String dir = inputJugadores.get(i).getDireccion();        // TODO: ajustar según tu lógica de dirección
+            float tiempoAnim = pj.getTiempoAnimacion();       // TODO: si querés mandar stateTime del personaje
+            float staminaActual = pj.getStaminaActual();  // TODO: obtener de Personaje si existe
+            float staminaMaxima = pj.getStaminaMaxima();  // TODO: idem
 
             if (!sb.isEmpty()) {
                 sb.append(";");
