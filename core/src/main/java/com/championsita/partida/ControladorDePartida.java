@@ -1,5 +1,6 @@
 package com.championsita.partida;
 
+import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.championsita.jugabilidad.entrada.EntradaJugador;
 import com.championsita.jugabilidad.entrada.InputServidor;
 import com.championsita.jugabilidad.modelo.Equipo;
@@ -82,7 +83,7 @@ public class ControladorDePartida {
         // ==================================================
         this.fisica = new SistemaFisico();
         this.colisiones = new SistemaColisiones();
-        this.partido = new SistemaPartido(); // Ajustá si tu ctor real recibe parámetros
+        this.partido = new SistemaPartido(this); // Ajustá si tu ctor real recibe parámetros
 
         // ==================================================
         // 3) Elegir modo de juego SERVIDOR según config
@@ -98,7 +99,7 @@ public class ControladorDePartida {
                 !config.habilidadesEspeciales.isEmpty()) {
 
             ctx = new ContextoModoDeJuego(
-                    null,           // viewport (no se usa en servidor)
+                    new FitViewport(8f, 5f),           // viewport (no se usa en servidor)
                     null,           // batch (no se usa en servidor)
                     cancha,
                     fisica,
@@ -112,7 +113,7 @@ public class ControladorDePartida {
 
         } else {
             ctx = new ContextoModoDeJuego(
-                    null,           // viewport
+                    new FitViewport(8f, 5f),           // viewport
                     null,           // batch
                     cancha,
                     fisica,
@@ -279,8 +280,8 @@ public class ControladorDePartida {
             if (sb.length() > 0) sb.append(";");
             float px = pelota.getX();
             float py = pelota.getY();
-            float pw = pelota.getAncho();
-            float ph = pelota.getAlto();
+            float pw = pelota.getHeight();
+            float ph = pelota.getWidth();
 
             float stateTime = 0f; // TODO: si tu Pelota tiene un stateTime lógico
             int animar = 1;       // 1 = se anima / 0 = estática (ajustá si necesitas)
@@ -299,8 +300,8 @@ public class ControladorDePartida {
         //        ARC_D:x=..,y=..,w=..,h=..
         // -------------------------------------------------
         if (cancha != null) {
-            Arco arcoIzq = cancha.getArcoIzq(); // Ajustá si el getter se llama distinto
-            Arco arcoDer = cancha.getArcoDer();
+            Arco arcoIzq = cancha.getArcoIzquierdo(); // Ajustá si el getter se llama distinto
+            Arco arcoDer = cancha.getArcoDerecho();
 
             if (arcoIzq != null) {
                 if (sb.length() > 0) sb.append(";");
@@ -327,8 +328,8 @@ public class ControladorDePartida {
         if (partido != null) {
             if (sb.length() > 0) sb.append(";");
 
-            int golesRojo  = partido.getGolesRojo();  // Ajustá nombres de getters si hace falta
-            int golesAzul  = partido.getGolesAzul();
+            int golesRojo  = partido.getNotadorEquipo1();  // Ajustá nombres de getters si hace falta
+            int golesAzul  = partido.getNotadorEquipo2();
 
             sb.append("HUD:")
                     .append("gr=").append(golesRojo).append(",")

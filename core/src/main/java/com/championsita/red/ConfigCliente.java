@@ -9,6 +9,7 @@ import java.util.List;
  * Solo datos elegidos por los menús.
  */
 public class ConfigCliente {
+    int id;
 
     // Skins seleccionadas (orden: J1, J2)
     public List<String> skinsJugadores = new ArrayList<>();
@@ -22,7 +23,7 @@ public class ConfigCliente {
     // Tiempo de partido (1=corto, 2=medio, 3=largo)
     public int tiempo;
 
-    // Modo de juego ("1v1", "practica", "especial")
+    // Modo de juego ("1v1", "practica", "especial", "futsal")
     public String modo;
 
     // Equipos (OPCIONAL) — versiones string, ej: "ROJO", "AZUL"

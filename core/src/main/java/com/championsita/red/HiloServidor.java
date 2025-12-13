@@ -1,289 +1,330 @@
 package com.championsita.red;
 
-import com.championsita.jugabilidad.entrada.EntradaJugador;
 import com.championsita.jugabilidad.entrada.InputServidor;
 import com.championsita.partida.ControladorDePartida;
 import com.championsita.partida.herramientas.Config;
-import com.championsita.red.ConfigFusionFactory;
 
 import java.net.*;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class HiloServidor extends Thread {
 
+    private static final int PUERTO = 4321;
+    private static final long TIMEOUT_MS = 5000;
+    private static final int TICK_NS = 16_666_666; // ~60 FPS
+
     private DatagramSocket socket;
 
-    // Jugadores conectados
     private final Map<Integer, Cliente> jugadores = new HashMap<>();
     private final Map<Integer, InputServidor> inputs = new HashMap<>();
+    private final Map<String, ManejadorDeMensajes> handlers = new HashMap<>();
+    private final Map<Integer, ConfigCliente> configuracionesRecibidas = new HashMap<>();
+
     private int ultimoID = 0;
-
-    // Configs enviadas por los clientes
-    private final Map<Integer, ConfigCliente> configs = new HashMap<>();
-
-    // Controlador lógico del partido (solo después de recibir ambas configs)
     private ControladorDePartida controlador = null;
 
-    private static final long TIMEOUT_MS = 5000;
+    // ------------------------------------------------------------
+    // CONSTRUCTOR
+    // ------------------------------------------------------------
 
-
-    // ============================================================
-    //  CONSTRUCTOR
-    // ============================================================
     public HiloServidor() {
+        inicializarSocket();
+        registrarHandlers();
+        iniciarChequeoDeInactividad();
+    }
+
+    private void inicializarSocket() {
         try {
-            socket = new DatagramSocket(4321);
-            System.out.println("[SERVIDOR] Escuchando en puerto 4321...");
+            socket = new DatagramSocket(PUERTO);
+            System.out.println("[SERVIDOR] Escuchando en puerto " + PUERTO + "...");
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
+    }
 
-        // Eliminación automática de clientes inactivos
+    /**
+     * Limpia clientes desconectados o inactivos cada segundo.
+     */
+    private void iniciarChequeoDeInactividad() {
         new Thread(() -> {
             while (true) {
-                limpiarJugadoresInactivos();
-                try { Thread.sleep(1000); } catch (Exception ignored) {}
+                limpiarClientesInactivos();
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception ignored) {}
             }
         }, "Servidor-Limpiador").start();
     }
 
+    // ------------------------------------------------------------
+    // LOOP PRINCIPAL
+    // ------------------------------------------------------------
 
-    // ============================================================
-    //  LOOP PRINCIPAL
-    // ============================================================
     @Override
     public void run() {
         while (true) {
             try {
-                byte[] buf = new byte[1024];
-                DatagramPacket dp = new DatagramPacket(buf, buf.length);
-                socket.receive(dp);
-                procesar(dp);
+                byte[] buffer = new byte[1024];
+                DatagramPacket paquete = new DatagramPacket(buffer, buffer.length);
+                socket.receive(paquete);
+                procesarPaquete(paquete);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
+    // ------------------------------------------------------------
+    // PROCESAMIENTO DE MENSAJES
+    // ------------------------------------------------------------
 
-    // ============================================================
-    //  PROCESAR MENSAJES
-    // ============================================================
-    private void procesar(DatagramPacket dp) {
-        String msg = new String(dp.getData(), 0, dp.getLength()).trim();
+    /**
+     * Procesa un paquete entrante y despacha su mensaje.
+     */
+    private void procesarPaquete(DatagramPacket paquete) {
+        String mensaje = new String(paquete.getData(), 0, paquete.getLength()).trim();
 
-        // ---------------------- HANDSHAKE -----------------------
-        if (msg.equals("Hello_There")) {
-            enviar("General_Kenobi", dp.getAddress(), dp.getPort());
+        if (mensaje.equals("Hello_There")) {
+            enviar("General_Kenobi", paquete.getAddress(), paquete.getPort());
+            LoggerRed.log("HANDSHAKE", "Cliente respondió Hello_There → envío General_Kenobi");
             return;
         }
 
-        // -------------------- REGISTRAR CLIENTE -----------------
-        if (msg.equals("Conectar")) {
-            registrarCliente(dp);
+        if (mensaje.equals("Conectar")) {
+            registrarNuevoCliente(paquete);
             return;
         }
 
-        Cliente remitente = obtenerJugador(dp);
+        Cliente remitente = obtenerClientePorPaquete(paquete);
         if (remitente == null) {
-            enviar("No_registrado", dp.getAddress(), dp.getPort());
+            enviar("No_registrado", paquete.getAddress(), paquete.getPort());
             return;
         }
+
         remitente.ultimoMensaje = System.currentTimeMillis();
 
-        if(msg.startsWith("INPUT:")){
-            procesarInput(msg, remitente.id);
+        String tipo = detectarTipoMensaje(mensaje);
+        ManejadorDeMensajes handler = handlers.get(tipo);
 
-        }
-
-        // -------------------- CONFIG FINAL -----------------------
-        if (msg.startsWith("CFG_FINAL=")) {
-
-            ConfigCliente cfg = procesarConfig(msg);
-            configs.put(remitente.id, cfg);
-
-            System.out.println("[SERVIDOR] Recibí config final del jugador " + remitente.id);
-
-            if (configs.size() == 2) iniciarPartida();
-
-            return;
-        }
-
-        // ------------------ MENSAJES DE LOBBY -------------------
-        if (msg.startsWith("SKIN_RIVAL") || msg.startsWith("READY") || msg.startsWith("CFG_")) {
-            enviarATodosMenos(msg, remitente);
-            System.out.println("CLIENTE " + remitente.id + " : " + msg);
-            return;
-        }
-
-        if(msg.startsWith("HAB_ESP:")){
-            //aca poner como guardamos las habilidades en los distintos jugadores
-        }
-
-        // ---------------------- HEARTBEAT ------------------------
-        if (msg.equals("PING")) {
-            enviar("PONG", remitente.ip, remitente.puerto);
-            return;
-        }
-
-        if (msg.equals("DISCONNECT")) {
-            jugadores.remove(remitente.id);
-            broadcast("PLAYER_DISCONNECTED:" + remitente.id);
-            return;
-        }
-
-        // --------------------- MENSAJES DE JUEGO ----------------
-        if (controlador != null) {
-            controlador.recibirMensaje(remitente.id, msg);
+        if (handler != null) {
+            handler.procesar(remitente, mensaje);
+        } else if (controlador != null) {
+            controlador.recibirMensaje(remitente.id, mensaje);
         }
     }
 
-    private void procesarInput(String msg, int id) {
-        String input = msg.substring("INPUT:".length());
-        String[] partes = input.split(",");
+    private String detectarTipoMensaje(String mensaje) {
+        if (mensaje.startsWith("INPUT:")) return "INPUT";
+        if (mensaje.startsWith("CFG_FINAL=")) return "CFG_FINAL";
+        if (mensaje.startsWith("SKIN_RIVAL") || mensaje.startsWith("READY") || mensaje.startsWith("CFG_")) return "LOBBY";
+        if (mensaje.equals("PING")) return "PING";
+        if (mensaje.equals("DISCONNECT")) return "DISCONNECT";
+        return "OTRO";
+    }
 
-        InputServidor inputServidor = inputs.get(id);
-        if(inputServidor == null) inputs.put(id, new InputServidor());
+    // ------------------------------------------------------------
+    // REGISTRO DE HANDLERS
+    // ------------------------------------------------------------
+
+    /**
+     * Registra funciones manejadoras de cada tipo de mensaje.
+     */
+    private void registrarHandlers() {
+        handlers.put("PING", (rem, msg) -> enviar("PONG", rem.ip, rem.puerto));
+
+        handlers.put("DISCONNECT", (rem, msg) -> {
+            jugadores.remove(rem.id);
+            broadcast("PLAYER_DISCONNECTED:" + rem.id);
+        });
+
+        handlers.put("CFG_FINAL", (rem, msg) -> {
+            ConfigCliente config = parsearConfigFinal(msg);
+            configuracionesRecibidas.put(rem.id, config);
+            LoggerRed.log("CFG", "Recibí configuración final del jugador " + rem.id);
+
+            if (configuracionesRecibidas.size() == 2) {
+                iniciarPartida();
+            }
+        });
+
+        handlers.put("INPUT", (rem, msg) -> procesarInputDeJugador(msg, rem.id));
+
+        handlers.put("LOBBY", (rem, msg) -> {
+            enviarATodosMenos(msg, rem);
+            LoggerRed.log("LOBBY", "Cliente " + rem.id + " : " + msg);
+        });
+    }
+
+    // ------------------------------------------------------------
+    // INPUT
+    // ------------------------------------------------------------
+
+    /**
+     * Actualiza el estado de input para un jugador.
+     */
+    private void procesarInputDeJugador(String mensaje, int id) {
+        String inputRaw = mensaje.substring("INPUT:".length());
+        String[] partes = inputRaw.split(",");
+
+        inputs.putIfAbsent(id, new InputServidor());
+        InputServidor input = inputs.get(id);
 
         for (String p : partes) {
-            String[] keyValues = p.split("=");
-            if (keyValues.length != 2) continue;
+            String[] kv = p.split("=");
+            if (kv.length != 2) continue;
 
-            boolean value = keyValues[1].equals("1");
+            boolean activo = kv[1].equals("1");
 
-            switch (keyValues[0]) {
-                case "u": inputs.get(id).arriba    = value; break;
-                case "d": inputs.get(id).abajo     = value; break;
-                case "l": inputs.get(id).izquierda = value; break;
-                case "r": inputs.get(id).derecha   = value; break;
-                case "a": inputs.get(id).accion    = value; break;
-                case "s": inputs.get(id).sprint    = value; break;
+            switch (kv[0]) {
+                case "u": input.arriba = activo; break;
+                case "d": input.abajo = activo; break;
+                case "l": input.izquierda = activo; break;
+                case "r": input.derecha = activo; break;
+                case "a": input.accion = activo; break;
+                case "s": input.sprint = activo; break;
             }
         }
     }
 
+    // ------------------------------------------------------------
+    // CONFIGURACIÓN
+    // ------------------------------------------------------------
 
-    // ============================================================
-    //  INICIAR PARTIDA DESPUÉS DE RECIBIR 2 CFG_FINAL
-    // ============================================================
-    private void iniciarPartida() {
+    /**
+     * Parsea la configuración final enviada por un cliente.
+     */
+    private ConfigCliente parsearConfigFinal(String mensaje) {
+        mensaje = mensaje.substring("CFG_FINAL=".length());
+        ConfigCliente config = new ConfigCliente();
 
-        System.out.println("[SERVIDOR] Ambas configuraciones recibidas. Iniciando partida...");
+        for (String p : mensaje.split(";")) {
+            String[] kv = p.split(",");
+            if (kv.length != 2) continue;
 
-        ConfigCliente c1 = configs.get(1);
-        ConfigCliente c2 = configs.get(2);
+            switch (kv[0]) {
+                case "id":        config.id = Integer.parseInt(kv[1]); break;
+                case "campo":     config.campo = kv[1]; break;
+                case "goles":     config.goles = Integer.parseInt(kv[1]); break;
+                case "tiempo":    config.tiempo = Integer.parseInt(kv[1]); break;
+                case "modo":      config.modo = kv[1]; break;
+                case "skin":      config.skinsJugadores.add(kv[1]); break;
+                case "habilidad": config.habilidadesEspeciales.add(kv[1]); break;
+            }
+        }
 
-        // Fusiona ConfigCliente → Config del servidor
-        Config cfgServidor = ConfigFusionFactory.fusionar(c1, c2);
-
-        // Crear controlador lógico usando esa config
-        controlador = new ControladorDePartida(cfgServidor);
-
-        // Avisar a los clientes que arranca la partida
-        //controlador.
-        String estado = controlador.generarEstado();
-        System.out.println(estado);
-        broadcast(estado);
-        broadcast("PARTIDA_INICIADA");
-
-        iniciarLoopServidor();
+        return config;
     }
 
+    // ------------------------------------------------------------
+    // INICIO DE PARTIDA Y LOOP DEL SERVIDOR
+    // ------------------------------------------------------------
 
-    // ============================================================
-    //  LOOP DE SIMULACIÓN DEL SERVIDOR (60 FPS)
-    // ============================================================
-    private void iniciarLoopServidor() {
+    /**
+     * Fusiona configuraciones y lanza la partida.
+     */
+    private void iniciarPartida() {
+        LoggerRed.log("JUEGO", "Ambas configuraciones recibidas. Iniciando partida...");
 
+        ConfigCliente c1 = configuracionesRecibidas.get(1);
+        ConfigCliente c2 = configuracionesRecibidas.get(2);
+
+        Config cfgServidor = ConfigFusionFactory.fusionar(c1, c2);
+        controlador = new ControladorDePartida(cfgServidor);
+
+        broadcast(controlador.generarEstado());
+        broadcast("PARTIDA_INICIADA");
+
+        iniciarLoopTickServidor();
+    }
+
+    /**
+     * Inicia el loop de simulación del servidor (60 FPS).
+     */
+    private void iniciarLoopTickServidor() {
         new Thread(() -> {
             long last = System.nanoTime();
 
             while (true) {
                 long now = System.nanoTime();
                 float delta = (now - last) / 1_000_000_000f;
-                final long FRAME_TIME = 16_666_666; // ~60 ticks por segundo
-
-                controlador.tick(delta, new ArrayList<>(this.inputs.values()));
-
-
                 last = now;
-                String estado = controlador.generarEstado();
-                System.out.println(estado);
-                broadcast(estado);
 
-                long sleep = FRAME_TIME - (System.nanoTime() - now);
+                controlador.tick(delta, getInputs());
+                broadcast(controlador.generarEstado());
+
+                long sleep = TICK_NS - (System.nanoTime() - now);
                 if (sleep > 0) {
                     try {
                         Thread.sleep(sleep / 1_000_000);
                     } catch (InterruptedException ignored) {}
                 }
             }
-
         }, "Servidor-Tick").start();
     }
 
+    // ------------------------------------------------------------
+    // CLIENTES
+    // ------------------------------------------------------------
 
-    // ============================================================
-    //  PARSEAR CFG_FINAL
-    // ============================================================
-    private ConfigCliente procesarConfig(String msg) {
+    /**
+     * Registra un nuevo cliente si aún no estaba.
+     */
+    private void registrarNuevoCliente(DatagramPacket dp) {
+        if (obtenerClientePorPaquete(dp) != null) return;
 
-        msg = msg.substring("CFG_FINAL=".length());
-        ConfigCliente cfg = new ConfigCliente();
+        int id = jugadores.containsKey(1) ? 2 : 1;
+        Cliente nuevo = new Cliente(id, dp.getAddress(), dp.getPort());
+        jugadores.put(id, nuevo);
 
-        String[] partes = msg.split(";");
+        enviar("Conectado", nuevo.ip, nuevo.puerto);
+        enviar("Registrado con ID " + id, nuevo.ip, nuevo.puerto);
 
-        for (String p : partes) {
+        LoggerRed.log("HANDSHAKE", "Cliente conectado con ID=" + id);
 
-            String[] kv = p.split(",");
-            if (kv.length != 2) continue;
+        if (jugadores.size() == 2) {
+            broadcast("conexion_establecida");
+        }
+    }
 
-            switch (kv[0]) {
-                case "campo": cfg.campo = kv[1]; break;
-                case "goles": cfg.goles = Integer.parseInt(kv[1]); break;
-                case "tiempo": cfg.tiempo = Integer.parseInt(kv[1]); break;
-                case "modo": cfg.modo = kv[1]; break;
-                    case "skin": cfg.skinsJugadores.add(kv[1]); break;
-                case "habilidad": cfg.habilidadesEspeciales.add(kv[1]); break;
+    /**
+     * Elimina clientes inactivos y avisa a los demás.
+     */
+    private void limpiarClientesInactivos() {
+        long ahora = System.currentTimeMillis();
+
+        List<Integer> idsInactivos = new ArrayList<>();
+
+        for (Map.Entry<Integer, Cliente> entry : jugadores.entrySet()) {
+            Cliente c = entry.getValue();
+            if ((ahora - c.ultimoMensaje) > TIMEOUT_MS) {
+                idsInactivos.add(entry.getKey());
+                broadcast("PLAYER_DISCONNECTED:" + c.id);
+                System.out.println("[SERVIDOR] Cliente " + c.id + " eliminado por timeout");
             }
         }
 
-        return cfg;
+        for (int id : idsInactivos) {
+            jugadores.remove(id);
+            inputs.remove(id);
+            configuracionesRecibidas.remove(id);
+        }
+
     }
 
-
-    // ============================================================
-    //  REGISTRAR CLIENTE
-    // ============================================================
-    private void registrarCliente(DatagramPacket dp) {
-
-        if (obtenerJugador(dp) != null) return;
-
-        int id = ++ultimoID;
-        Cliente c = new Cliente(id, dp.getAddress(), dp.getPort());
-        jugadores.put(id, c);
-
-        enviar("Conectado", c.ip, c.puerto);
-
-        System.out.println("[SERVIDOR] Jugador conectado con ID=" + id);
-
-        if (jugadores.size() == 2)
-            broadcast("conexion_establecida");
-    }
-
-
-    // ============================================================
-    //  UTILIDADES
-    // ============================================================
-    private Cliente obtenerJugador(DatagramPacket dp) {
+    /**
+     * Busca un cliente que coincida con el paquete recibido.
+     */
+    private Cliente obtenerClientePorPaquete(DatagramPacket dp) {
         for (Cliente c : jugadores.values()) {
             if (c.esEste(dp)) return c;
         }
         return null;
     }
+
+    // ------------------------------------------------------------
+    // COMUNICACIÓN
+    // ------------------------------------------------------------
 
     public void enviar(String msg, InetAddress ip, int puerto) {
         try {
@@ -297,44 +338,12 @@ public class HiloServidor extends Thread {
     }
 
     public void enviarATodosMenos(String msg, Cliente remitente) {
-        for (Cliente c : jugadores.values()) {
+        jugadores.values().forEach(c -> {
             if (c != remitente) enviar(msg, c.ip, c.puerto);
-        }
-    }
-
-    private void limpiarJugadoresInactivos() {
-        long ahora = System.currentTimeMillis();
-
-        jugadores.values().removeIf(c -> {
-            boolean muerto = (ahora - c.ultimoMensaje > TIMEOUT_MS);
-            if (muerto) broadcast("PLAYER_DISCONNECTED:" + c.id);
-            return muerto;
         });
     }
 
-    public ArrayList<InputServidor> getInputs(){
-        return new ArrayList<>(this.inputs.values());
-    }
-
-
-
-    // ============================================================
-    //  CLASE CLIENTE INTERNA
-    // ============================================================
-    private static class Cliente {
-        int id;
-        InetAddress ip;
-        int puerto;
-        long ultimoMensaje = System.currentTimeMillis();
-
-        Cliente(int id, InetAddress ip, int puerto) {
-            this.id = id;
-            this.ip = ip;
-            this.puerto = puerto;
-        }
-
-        boolean esEste(DatagramPacket dp) {
-            return ip.equals(dp.getAddress()) && puerto == dp.getPort();
-        }
+    public ArrayList<InputServidor> getInputs() {
+        return new ArrayList<>(inputs.values());
     }
 }

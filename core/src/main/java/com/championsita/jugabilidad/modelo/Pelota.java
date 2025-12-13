@@ -4,121 +4,112 @@ import com.badlogic.gdx.math.Rectangle;
 
 public class Pelota {
 
-    // Posición
+    private static final float FRICCION        = 0.95f;
+    private static final float FUERZA_DISPARO  = 2.5f;
+    private static final float FUERZA_EMPUJE   = 1f;
+    private static final float KICK_FORCE      = 0.35f;
+    private static final float UMBRAL_MOV      = 0.01f;
+
+    private Personaje ultimoJugadorQueLaToco;
+    private Personaje jugadorTocandoPelota;
+
     private float x, y;
+    private float width, height;
+    private float velocidadX = 0f;
+    private float velocidadY = 0f;
+    private Rectangle hitbox;
+    public boolean curvaActiva = false;
+    public int curvaSigno = 0;
 
-    // Tamaño lógico (no visual, pero el cliente puede dibujar usando esto)
-    private float ancho = 0.25f;
-    private float alto  = 0.25f;
+    private boolean huboContactoEsteFrame = false;
+    private boolean huboContactoPrevio    = false;
 
-    // Velocidad
-    private float vx = 0f;
-    private float vy = 0f;
-
-    // Fricción simple
-    private static final float FRICCION = 0.95f;
-
-    // Hitbox AABB
-    private final Rectangle hitbox = new Rectangle();
-
-    public Pelota(float xInicial, float yInicial) {
+    public Pelota(float xInicial, float yInicial, float escala) {
+        this.width = 3 * escala;
+        this.height = 3 * escala;
         this.x = xInicial;
         this.y = yInicial;
-        hitbox.set(x, y, ancho, alto);
+        hitbox = new Rectangle(x, y, width, height);
     }
 
-    // =========================
-    // Actualización básica
-    // =========================
+    public void registrarContacto(Personaje jugador, float dx, float dy, boolean disparo) {
+        huboContactoEsteFrame = true;
+        this.jugadorTocandoPelota = jugador;
+
+        if (disparo) {
+            velocidadX = dx * FUERZA_DISPARO;
+            velocidadY = dy * FUERZA_DISPARO;
+        } else {
+            if (!huboContactoPrevio) {
+                velocidadX += dx * KICK_FORCE;
+                velocidadY += dy * KICK_FORCE;
+            }
+        }
+    }
+
     public void actualizar(float delta) {
-        // Integración de velocidad
-        x += vx * delta;
-        y += vy * delta;
+        x += velocidadX * delta;
+        y += velocidadY * delta;
 
-        // Fricción
-        vx *= FRICCION;
-        vy *= FRICCION;
+        velocidadX *= FRICCION;
+        velocidadY *= FRICCION;
 
-        // Actualizar hitbox
+        if (Math.abs(velocidadX) < UMBRAL_MOV) velocidadX = 0f;
+        if (Math.abs(velocidadY) < UMBRAL_MOV) velocidadY = 0f;
+
         hitbox.setPosition(x, y);
+
+        huboContactoPrevio    = huboContactoEsteFrame;
+        huboContactoEsteFrame = false;
     }
 
-    // =========================
-    // Impulsos / rebotes
-    // =========================
-
-    /**
-     * Aplica un impulso en la dirección (dx,dy) normalizada.
-     */
-    public void aplicarImpulso(float dx, float dy, float fuerza) {
-        vx += dx * fuerza;
-        vy += dy * fuerza;
+    public void detenerPelota() {
+        this.velocidadX = 0.0F;
+        this.velocidadY = 0.0F;
     }
 
-    /**
-     * Invierte la velocidad en X (rebote horizontal).
-     */
-    public void rebotarX() {
-        vx = -vx;
+    public void limpiarContacto() {
+        this.huboContactoEsteFrame = false;
+        this.huboContactoPrevio = false;
     }
 
-    /**
-     * Invierte la velocidad en Y (rebote vertical).
-     */
-    public void rebotarY() {
-        vy = -vy;
+    public void setCurvaActiva(boolean activa, int signo) {
+        this.curvaActiva = activa;
+        this.curvaSigno = signo;
     }
 
-    /**
-     * Setea velocidad directa.
-     */
-    public void setVelocidad(float vx, float vy) {
-        this.vx = vx;
-        this.vy = vy;
+    public void setVelocidad(float velocidadX, float velocidadY) {
+        this.velocidadX = velocidadX;
+        this.velocidadY = velocidadY;
     }
 
-    // =========================
-    // Posición
-    // =========================
+    // Getters y Setters
+    public Rectangle getHitbox() { return hitbox; }
     public float getX() { return x; }
+    public void setX(float x) { this.x = x;}
     public float getY() { return y; }
-
-    public void setX(float x) {
-        this.x = x;
-        hitbox.setX(x);
-    }
-
-    public void setY(float y) {
-        this.y = y;
-        hitbox.setY(y);
-    }
-
+    public void setY(float y) { this.y = y;}
     public void setPosicion(float nuevaX, float nuevaY) {
         this.x = nuevaX;
         this.y = nuevaY;
         hitbox.setPosition(nuevaX, nuevaY);
     }
 
-    // =========================
-    // Tamaño
-    // =========================
-    public float getAncho()  { return ancho; }
-    public float getAlto() { return alto; }
+    public static float getFuerzaEmpuje()  { return FUERZA_EMPUJE; }
+    public static float getFuerzaDisparo() { return FUERZA_DISPARO; }
 
-    public void setTamaño(float ancho, float alto) {
-        this.ancho = ancho;
-        this.alto = alto;
-        hitbox.setSize(ancho, alto);
-    }
+    public float getWidth()  { return width; }
+    public float getHeight() { return height; }
 
-    // =========================
-    // Velocidad (getters)
-    // =========================
-    public float getVelocidadX() { return vx; }
-    public float getVelocidadY() { return vy; }
+    public float getVelocidadX() { return velocidadX; }
+    public float getVelocidadY() { return velocidadY; }
+    public void setVelocidadX(float vx) { this.velocidadX = vx; }
+    public void setVelocidadY(float vy) { this.velocidadY = vy; }
 
-    // =========================
-    // Hitbox
-    // =========================
-    public Rectangle getHitbox() { return hitbox; }
+    public Personaje getUltimoJugadorQueLaToco() { return ultimoJugadorQueLaToco; }
+    public void setUltimoJugadorQueLaToco(Personaje pj){ ultimoJugadorQueLaToco = pj; }
+
+    public Personaje getJugadorTocandoPelota() { return jugadorTocandoPelota; }
+    public void setJugadorTocandoPelota(Personaje jugador) { this.jugadorTocandoPelota =  jugador; }
+    public void resetJugadorTocando() { this.jugadorTocandoPelota = null; }
 }

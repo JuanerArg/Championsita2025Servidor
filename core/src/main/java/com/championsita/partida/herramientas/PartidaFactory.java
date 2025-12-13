@@ -1,5 +1,6 @@
 package com.championsita.partida.herramientas;
 
+import com.badlogic.gdx.graphics.Texture;
 import com.championsita.jugabilidad.modelo.*;
 import com.championsita.jugabilidad.personajes.Normal;
 import com.championsita.jugabilidad.constantes.Constantes;
@@ -12,7 +13,7 @@ public class PartidaFactory {
 
         MundoPartida mundo = new MundoPartida();
 
-        mundo.cancha = new Cancha(0.5f, 0.8f);
+        mundo.cancha = new Cancha(0.5f, 0.8f, Constantes.MUNDO_ALTO, Constantes.MUNDO_ANCHO);
 
         mundo.jugadores = new ArrayList<>();
 
@@ -28,7 +29,8 @@ public class PartidaFactory {
 
         mundo.pelota = new Pelota(
                 Constantes.MUNDO_ANCHO/2f,
-                Constantes.MUNDO_ALTO/2f
+                Constantes.MUNDO_ALTO/2f,
+                0.1f
         );
 
         return mundo;

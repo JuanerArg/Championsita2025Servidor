@@ -19,6 +19,8 @@ public interface ModoDeJuego {
     // Devuelve el procesador de entrada activo del modo.
     InputProcessor getProcesadorEntrada();
 
+    void renderizar(SpriteBatch batch);
+
     // Indica si el modo ya terminó (por ejemplo, fin del partido).
     boolean finalizado();
 

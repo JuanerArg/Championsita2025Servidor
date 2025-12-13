@@ -43,9 +43,7 @@ public class Personaje {
     private float timerBuffVelocidad  = 0f;
     private float timerDebuffVelocidad = 0f;
 
-    // (en cliente había animaciones por dirección; acá no las necesitamos,
-    // pero dejamos el mapa si alguna lógica lo usa, aunque vacío)
-    private final Map<Direccion, Object> animacionesFake = new EnumMap<>(Direccion.class);
+    public int identificadorOnline;
 
     // -----------------------
     // Constructor

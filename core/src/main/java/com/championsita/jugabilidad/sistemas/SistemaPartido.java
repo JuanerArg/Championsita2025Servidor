@@ -1,33 +1,145 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
 package com.championsita.jugabilidad.sistemas;
 
 import com.badlogic.gdx.math.Rectangle;
 import com.championsita.jugabilidad.modelo.*;
+import com.championsita.partida.ControladorDePartida;
+
+import static com.championsita.jugabilidad.modelo.HabilidadesEspeciales.EXTREMISTA;
 
 public class SistemaPartido {
+    int notadorEquipo1 = 0;
+    int notadorEquipo2 = 0;
 
-    private int golesRojo = 0;
-    private int golesAzul = 0;
 
-    public void verificarGol(Pelota pelota, Cancha cancha) {
 
-        Rectangle p = pelota.getHitbox();
+    private ControladorDePartida controlador;
 
-        if (p.overlaps(cancha.getArcoIzq().getHitbox())) {
-            golesAzul++;
-            reiniciarPelota(pelota);
-        }
-
-        if (p.overlaps(cancha.getArcoDer().getHitbox())) {
-            golesRojo++;
-            reiniciarPelota(pelota);
-        }
+    public SistemaPartido(ControladorDePartida controlador) {
+        this.controlador = controlador;
     }
 
-    private void reiniciarPelota(Pelota pelota) {
-        pelota.setPosicion(4f, 2.5f);
-        pelota.setVelocidad(0, 0);
+    public boolean checkGol(Pelota pelota, Arco arco) {
+
+        // Rectángulo del arco (zona que define el gol)
+        Rectangle zonaArco = arco.getHitbox();
+
+        // Rectángulo de la pelota
+        Rectangle rectPelota = pelota.getHitbox();
+
+        // Centro de la pelota
+        float centroPelotaX = rectPelota.x + rectPelota.width / 2f;
+        float centroPelotaY = rectPelota.y + rectPelota.height / 2f;
+
+        // Límites del arco
+        float arcoXMin = zonaArco.x;
+        float arcoXMax = zonaArco.x + zonaArco.width;
+        float arcoYMin = zonaArco.y;
+        float arcoYMax = zonaArco.y + zonaArco.height;
+
+        // Detecta si el centro de la pelota está dentro del área del arco
+        boolean centroDentroDeArco =
+                centroPelotaX >= arcoXMin &&
+                        centroPelotaX <= arcoXMax &&
+                        centroPelotaY >= arcoYMin &&
+                        centroPelotaY <= arcoYMax;
+
+        return centroDentroDeArco;
     }
 
-    public int getGolesRojo() { return golesRojo; }
-    public int getGolesAzul() { return golesAzul; }
+
+    public boolean verificarSiHayGol(Pelota pelota, Cancha cancha) {
+        if (this.checkGol(pelota, cancha.getArcoDerecho())) {
+            System.out.println("Gol equipo 2!!");
+            ++this.notadorEquipo1;
+            this.reiniciarPelota(pelota);
+            return true;
+        } else if (this.checkGol(pelota, cancha.getArcoIzquierdo())) {
+            System.out.println("Gol equipo 1!!");
+            ++this.notadorEquipo2;
+            this.reiniciarPelota(pelota);
+            return true;
+        }
+
+        // ============================================
+        // EXTREMISTA: aplicar buff/debuff por gol
+        // ============================================
+
+        Personaje personajeQueMetioGol = pelota.getUltimoJugadorQueLaToco();
+
+        // Si nadie la tocó todavía → no aplicar EXTREMISTA
+        if (personajeQueMetioGol == null) {
+            return false;
+        }
+
+        Equipo meteGol = personajeQueMetioGol.getEquipo();
+
+        // Si por error el jugador no tiene equipo → no crashear
+        if (meteGol == null) {
+            return false;
+        }
+
+        Equipo recibeGol = (meteGol == Equipo.ROJO) ? Equipo.AZUL : Equipo.ROJO;
+
+        for (Personaje pj : controlador.getJugadoresDelEquipo(meteGol)){
+            if (pj.getHabilidadActual() == EXTREMISTA) {
+                pj.activarBuffVelocidad(10f);
+            }
+        }
+
+        for (Personaje pj : controlador.getJugadoresDelEquipo(recibeGol)) {
+            if (pj.getHabilidadActual() == EXTREMISTA) {
+                pj.activarDebuffVelocidad(10f);
+            }
+        }
+
+        return false;
+    }
+
+    public void reiniciarPelota(Pelota pelota) {
+        pelota.detenerPelota();
+        pelota.setPosicion(4.0F, 2.5F);
+    }
+
+    public int getNotadorEquipo1() {
+        return this.notadorEquipo1;
+    }
+
+    public int getNotadorEquipo2(){
+        return this.notadorEquipo2;
+    }
+
+    public enum EstadoPartido {
+        JUGANDO,
+        SAQUE_LATERAL
+    }
+
+
+
+
+    private EstadoPartido estado = EstadoPartido.JUGANDO;
+
+    public void setEstado(EstadoPartido e) {
+        this.estado = e;
+    }
+
+    public EstadoPartido getEstado() {
+        return estado;
+    }
+
+
+    private Equipo equipoQueSaca = null;
+
+    public void setEquipoQueSaca(Equipo equipo) {
+        this.equipoQueSaca = equipo;
+    }
+
+    public Equipo getEquipoQueSaca() {
+        return equipoQueSaca;
+    }
+
 }

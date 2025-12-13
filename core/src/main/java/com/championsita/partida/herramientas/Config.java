@@ -16,12 +16,14 @@ public class Config {
     public final int golesParaGanar;
     public final float tiempoPartido; // en segundos
     public final List<Equipo> equiposJugadores;
+    public final ArrayList<String> skinsJugadores;//nuevo
     public final ArrayList<HabilidadesEspeciales> habilidadesEspeciales;
 
     private Config(Builder b) {
         this.modo = b.modo;
         this.golesParaGanar = b.golesParaGanar;
         this.tiempoPartido = b.tiempoPartido;
+        this.skinsJugadores = new ArrayList<>(b.skinsJugadores);//nuevo
         this.equiposJugadores = new ArrayList<> (b.equiposJugadores);
         this.habilidadesEspeciales = new ArrayList<> (b.habilidadesEspeciales);
     }
@@ -32,6 +34,7 @@ public class Config {
         private int golesParaGanar = 1;
         private float tiempoPartido = 60f; // valor default
 
+        private ArrayList<String> skinsJugadores = new ArrayList<>();//nuevo
         private List<Equipo> equiposJugadores = new ArrayList<>();
         private List<HabilidadesEspeciales> habilidadesEspeciales = new ArrayList<>();
 
@@ -52,6 +55,11 @@ public class Config {
 
         public Builder agregarEquipo(Equipo e) {
             this.equiposJugadores.add(e);
+            return this;
+        }
+        //nuevo
+        public Builder agregarSkin(String sJ){
+            this.skinsJugadores.add(sJ);
             return this;
         }
 
