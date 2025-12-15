@@ -44,7 +44,10 @@ public class ModoEspecial extends ModoBase {
      * o definirse mediante configuración previa.
      */
     private void aplicarHabilidadesIniciales() {
-        if (ctx.habilidadesEspeciales == null || ctx.habilidadesEspeciales.isEmpty()) return;
+        if (ctx.habilidadesEspeciales == null || ctx.habilidadesEspeciales.isEmpty()) {
+            System.err.println("No hay habilidades");
+            return;
+        }
 
         int count = Math.min(jugadoresEnOrden.size(), ctx.habilidadesEspeciales.size());
 

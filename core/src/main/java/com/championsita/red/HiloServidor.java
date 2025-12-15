@@ -21,8 +21,10 @@ public class HiloServidor extends Thread {
     private final Map<String, ManejadorDeMensajes> handlers = new HashMap<>();
     private final Map<Integer, ConfigCliente> configuracionesRecibidas = new HashMap<>();
 
-    private int ultimoID = 0;
     private ControladorDePartida controlador = null;
+    private boolean chequeoActivo = true;
+    private volatile boolean partidaActiva = false;
+
 
     // ------------------------------------------------------------
     // CONSTRUCTOR
@@ -47,14 +49,26 @@ public class HiloServidor extends Thread {
      * Limpia clientes desconectados o inactivos cada segundo.
      */
     private void iniciarChequeoDeInactividad() {
-        new Thread(() -> {
-            while (true) {
-                limpiarClientesInactivos();
+        Thread limpiador = new Thread(() -> {
+            while (chequeoActivo) {
+                if (limpiarClientesInactivos()) {
+                    detenerChequeo();
+                    return; // sale del hilo limpiamente
+                }
+
                 try {
                     Thread.sleep(1000);
-                } catch (Exception ignored) {}
+                } catch (InterruptedException e) {
+                    return; // si lo interrumpen, termina
+                }
             }
-        }, "Servidor-Limpiador").start();
+        }, "Servidor-Limpiador");
+
+        limpiador.start();
+    }
+
+    private void detenerChequeo() {
+        chequeoActivo = false;
     }
 
     // ------------------------------------------------------------
@@ -120,6 +134,7 @@ public class HiloServidor extends Thread {
         if (mensaje.startsWith("SKIN_RIVAL") || mensaje.startsWith("READY") || mensaje.startsWith("CFG_")) return "LOBBY";
         if (mensaje.equals("PING")) return "PING";
         if (mensaje.equals("DISCONNECT")) return "DISCONNECT";
+        if (mensaje.equals("Modo recibido")) return "Modo recibido";
         return "OTRO";
     }
 
@@ -132,10 +147,25 @@ public class HiloServidor extends Thread {
      */
     private void registrarHandlers() {
         handlers.put("PING", (rem, msg) -> enviar("PONG", rem.ip, rem.puerto));
-
+        handlers.put("Modo recibido", (rem, msg) -> LoggerRed.log("Modo recibido", msg));
         handlers.put("DISCONNECT", (rem, msg) -> {
             jugadores.remove(rem.id);
+            inputs.remove(rem.id);
+            configuracionesRecibidas.remove(rem.id);
+
             broadcast("PLAYER_DISCONNECTED:" + rem.id);
+
+            if (partidaActiva && jugadores.size() < 2) {
+                partidaActiva = false;
+                controlador = null;
+
+                jugadores.clear();
+                inputs.clear();
+                configuracionesRecibidas.clear();
+
+                LoggerRed.log("SERVIDOR", "Partida abortada por desconexión de un jugador.");
+                broadcast("PARTIDA_ABORTADA");
+            }
         });
 
         handlers.put("CFG_FINAL", (rem, msg) -> {
@@ -197,11 +227,12 @@ public class HiloServidor extends Thread {
     private ConfigCliente parsearConfigFinal(String mensaje) {
         mensaje = mensaje.substring("CFG_FINAL=".length());
         ConfigCliente config = new ConfigCliente();
-
+        System.out.println("mensaje => " + mensaje);
         for (String p : mensaje.split(";")) {
-            String[] kv = p.split(",");
+            System.out.println("p => " + p);
+            String[] kv = p.split(":");
             if (kv.length != 2) continue;
-
+            System.out.println("kv => " + Arrays.toString(kv));
             switch (kv[0]) {
                 case "id":        config.id = Integer.parseInt(kv[1]); break;
                 case "campo":     config.campo = kv[1]; break;
@@ -209,7 +240,7 @@ public class HiloServidor extends Thread {
                 case "tiempo":    config.tiempo = Integer.parseInt(kv[1]); break;
                 case "modo":      config.modo = kv[1]; break;
                 case "skin":      config.skinsJugadores.add(kv[1]); break;
-                case "habilidad": config.habilidadesEspeciales.add(kv[1]); break;
+                case "habilidad": config.habilidadesEspeciales.add(kv[1]); System.out.println(kv[1]);break;
             }
         }
 
@@ -232,6 +263,8 @@ public class HiloServidor extends Thread {
         Config cfgServidor = ConfigFusionFactory.fusionar(c1, c2);
         controlador = new ControladorDePartida(cfgServidor);
 
+        partidaActiva = true;
+
         broadcast(controlador.generarEstado());
         broadcast("PARTIDA_INICIADA");
 
@@ -245,19 +278,24 @@ public class HiloServidor extends Thread {
         new Thread(() -> {
             long last = System.nanoTime();
 
-            while (true) {
+            while (partidaActiva) {
                 long now = System.nanoTime();
                 float delta = (now - last) / 1_000_000_000f;
                 last = now;
 
+                if (controlador == null) return; // seguridad extra
+
+                String estado = controlador.generarEstado();
                 controlador.tick(delta, getInputs());
-                broadcast(controlador.generarEstado());
+                broadcast(estado);
 
                 long sleep = TICK_NS - (System.nanoTime() - now);
                 if (sleep > 0) {
                     try {
                         Thread.sleep(sleep / 1_000_000);
-                    } catch (InterruptedException ignored) {}
+                    } catch (InterruptedException ignored) {
+                        return;
+                    }
                 }
             }
         }, "Servidor-Tick").start();
@@ -273,7 +311,9 @@ public class HiloServidor extends Thread {
     private void registrarNuevoCliente(DatagramPacket dp) {
         if (obtenerClientePorPaquete(dp) != null) return;
 
-        int id = jugadores.containsKey(1) ? 2 : 1;
+        int id = jugadores.containsKey(1) ? (jugadores.containsKey(2) ? -1 : 2) : 1;
+        if (id == -1) return; // No hay lugar disponible (ya hay 2 jugadores)
+
         Cliente nuevo = new Cliente(id, dp.getAddress(), dp.getPort());
         jugadores.put(id, nuevo);
 
@@ -290,9 +330,8 @@ public class HiloServidor extends Thread {
     /**
      * Elimina clientes inactivos y avisa a los demás.
      */
-    private void limpiarClientesInactivos() {
+    private boolean limpiarClientesInactivos() {
         long ahora = System.currentTimeMillis();
-
         List<Integer> idsInactivos = new ArrayList<>();
 
         for (Map.Entry<Integer, Cliente> entry : jugadores.entrySet()) {
@@ -310,7 +349,24 @@ public class HiloServidor extends Thread {
             configuracionesRecibidas.remove(id);
         }
 
+        if (!idsInactivos.isEmpty() && controlador != null && jugadores.size() < 2) {
+            controlador = null;
+            partidaActiva = false;
+
+            // ⚠️ limpiar completamente
+            jugadores.clear();
+            inputs.clear();
+            configuracionesRecibidas.clear();
+
+            LoggerRed.log("SERVIDOR", "Partida abortada por desconexión de un jugador.");
+            broadcast("PARTIDA_ABORTADA");
+            return true;
+        }
+
+        return false;
     }
+
+
 
     /**
      * Busca un cliente que coincida con el paquete recibido.

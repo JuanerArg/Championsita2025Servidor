@@ -17,13 +17,11 @@ import com.championsita.partida.herramientas.PartidaFactory;
 import com.championsita.partida.modosdejuego.ModoDeJuego;
 import com.championsita.partida.modosdejuego.implementaciones.ModoBase;
 import com.championsita.partida.modosdejuego.implementaciones.ModoEspecial;
+import com.championsita.partida.modosdejuego.implementaciones.ModoFutsal;
 import com.championsita.partida.modosdejuego.implementaciones.UnoContraUno;
 import com.championsita.partida.nucleo.ContextoModoDeJuego;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Controlador de la partida en el SERVIDOR (headless).
@@ -147,12 +145,19 @@ public class ControladorDePartida {
         //     default:         return new UnoContraUno();
         // }
 
-        if (cfg != null && cfg.habilidadesEspeciales != null && !cfg.habilidadesEspeciales.isEmpty()) {
-            // Si hay habilidades especiales configuradas, asumimos modo especial.
+
+        //cfg.habilidadesEspeciales != null && !cfg.habilidadesEspeciales.isEmpty() <- Volver a poner en el if despues
+        if (cfg != null && Objects.equals(cfg.modo, "especial")) {
+            System.out.println("Creamos modo especial");
             return new ModoEspecial();
+        }
+        if(cfg != null && Objects.equals(cfg.modo, "futsal")){
+            System.out.println("Creamos modo futsal");
+            return new ModoFutsal();
         }
 
         // Por defecto: Uno contra Uno
+        System.out.println("Creamos modo uno contra uno");
         return new UnoContraUno();
     }
 
@@ -200,19 +205,7 @@ public class ControladorDePartida {
     //  (llamado por HiloServidor.recibirMensaje)
     // =========================================================
     public void recibirMensaje(int idJugador, String mensaje) {
-        // Acá deberías mapear "mensaje" a input para el jugador idJugador.
-        // Ejemplos posibles de protocolo:
-        //
-        //  - "INPUT;id=1;u=0;d=1;l=0;r=1;chutar=0"
-        //  - "MOVE:1:ARRIBA"
-        //
-        // Por ahora lo dejo como log / TODO para que lo completes después.
         System.out.println("Mensaje de jugador " + idJugador + ": " + mensaje);
-
-        // TODO: acá podés:
-        //  - Obtener el Personaje correspondiente a idJugador
-        //  - Actualizar algún objeto de entrada (EntradaJugador) que
-        //    tu SistemaFisico / ModoDeJuego use en actualizar(delta).
     }
 
     // =========================================================
@@ -244,19 +237,16 @@ public class ControladorDePartida {
             if (pj == null) continue;
 
 
-            float x = pj.getX();         // Ajustá si tu Personaje usa otro getter
+            float x = pj.getX();
             float y = pj.getY();
-            float w = pj.getAncho();     // Idem: si no existe, podés usar ancho fijo
+            float w = pj.getAncho();
             float h = pj.getAlto();
 
-            // Por ahora supongo que no tengo acceso directo al "estaMoviendo" ni "direccion"
-            // de Personaje del servidor. Podés enriquecer esto más adelante.
-            int mov = inputJugadores.get(i).getEstaMoviendose();                 // 0 = quieto, 1 = moviendo (TODO)
-            //System.out.println(mov);
-            String dir = inputJugadores.get(i).getDireccion();        // TODO: ajustar según tu lógica de dirección
-            float tiempoAnim = pj.getTiempoAnimacion();       // TODO: si querés mandar stateTime del personaje
-            float staminaActual = pj.getStaminaActual();  // TODO: obtener de Personaje si existe
-            float staminaMaxima = pj.getStaminaMaxima();  // TODO: idem
+            int mov = inputJugadores.get(i).getEstaMoviendose();
+            String dir = inputJugadores.get(i).getDireccion();
+            float tiempoAnim = pj.getTiempoAnimacion();
+            float staminaActual = pj.getStaminaActual();
+            float staminaMaxima = pj.getStaminaMaxima();
 
             if (!sb.isEmpty()) {
                 sb.append(";");
@@ -331,7 +321,7 @@ public class ControladorDePartida {
             int golesRojo  = partido.getNotadorEquipo1();  // Ajustá nombres de getters si hace falta
             int golesAzul  = partido.getNotadorEquipo2();
 
-            sb.append("HUD:")
+            sb.append("HUD").append(",")
                     .append("gr=").append(golesRojo).append(",")
                     .append("ga=").append(golesAzul);
         }

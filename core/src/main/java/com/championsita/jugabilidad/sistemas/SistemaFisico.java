@@ -79,6 +79,7 @@ public class SistemaFisico {
                 pelota.setX(hb.lineaIzquierda.x + hb.lineaIzquierda.width);
                 pelota.setVelocidadX(-pelota.getVelocidadX() * 0.8f);
                 pelota.limpiarContacto();
+                System.out.println("Rebota la pelota");
             }
         }
 
@@ -96,6 +97,7 @@ public class SistemaFisico {
                 pelota.setX(hb.lineaDerecha.x - w);
                 pelota.setVelocidadX(-pelota.getVelocidadX() * 0.8f);
                 pelota.limpiarContacto();
+                System.out.println("Rebota la pelota");
             }
         }
 
@@ -106,6 +108,7 @@ public class SistemaFisico {
             pelota.setY(hb.lineaInferior.y + hb.lineaInferior.height);
             pelota.setVelocidadY(-pelota.getVelocidadY() * 0.8f);
             pelota.limpiarContacto();
+            System.out.println("Rebota la pelota");
         }
 
         // ================================
@@ -115,6 +118,7 @@ public class SistemaFisico {
             pelota.setY(hb.lineaSuperior.y - h);
             pelota.setVelocidadY(-pelota.getVelocidadY() * 0.8f);
             pelota.limpiarContacto();
+            System.out.println("Rebota la pelota");
         }
     }
 

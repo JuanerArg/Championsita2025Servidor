@@ -1,14 +1,14 @@
 package com.championsita.jugabilidad.modelo;
 
 public enum HabilidadesEspeciales {
-    NEUTRO("Neutro"),
-    GRANDOTE("Grandote"),
-    PEQUEÑIN("Pequenin"),
-    EMPUJON("Empujon"),
-    ZURDO("Zurdo"),
-    DIESTRO("Diestro"),
-    ATLETA("Atleta"),
-    EXTREMISTA("Extremista");
+    NEUTRO("NEUTRO"),
+    GRANDOTE("GRANDOTE"),
+    PEQUEÑIN("PEQUEÑIN"),
+    EMPUJON("EMPUJON"),
+    ZURDO("ZURDO"),
+    DIESTRO("DIESTRO"),
+    ATLETA("ATLETA"),
+    EXTREMISTA("EXTREMISTA");
 
     private final String nombre;
 
