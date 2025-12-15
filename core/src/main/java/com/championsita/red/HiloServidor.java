@@ -7,12 +7,16 @@ import com.championsita.partida.herramientas.Config;
 import java.net.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class HiloServidor extends Thread {
 
     private static final int PUERTO = 4321;
     private static final long TIMEOUT_MS = 5000;
     private static final int TICK_NS = 16_666_666; // ~60 FPS
+    private final AtomicInteger contadorTick = new AtomicInteger(0);
+    private Thread hiloTick;
+    private static final int UMBRAL_TICKS = 1000; // Ajustable
 
     private DatagramSocket socket;
 
@@ -24,8 +28,6 @@ public class HiloServidor extends Thread {
     private ControladorDePartida controlador = null;
     private boolean chequeoActivo = true;
     private volatile boolean partidaActiva = false;
-
-
     // ------------------------------------------------------------
     // CONSTRUCTOR
     // ------------------------------------------------------------
@@ -274,32 +276,75 @@ public class HiloServidor extends Thread {
     /**
      * Inicia el loop de simulación del servidor (60 FPS).
      */
+
     private void iniciarLoopTickServidor() {
-        new Thread(() -> {
+        contadorTick.set(0);
+        partidaActiva = true;
+        hiloTick = new Thread(() -> {
             long last = System.nanoTime();
+            double acumuladorDelta = 0.0;
 
             while (partidaActiva) {
                 long now = System.nanoTime();
-                float delta = (now - last) / 1_000_000_000f;
+                double delta = (now - last) / 1_000_000_000.0; // en segundos
                 last = now;
+                acumuladorDelta += delta;
 
-                if (controlador == null) return; // seguridad extra
+                if (controlador == null) break;
 
+                // Tick normal del juego (~60 FPS)
+                controlador.tick((float) delta, getInputs());
+                controlador.tiempo = contadorTick.get();
                 String estado = controlador.generarEstado();
-                controlador.tick(delta, getInputs());
                 broadcast(estado);
 
+                // Si pasó un segundo real, aumentamos contador
+                if (acumuladorDelta >= 1.0) {
+                    contadorTick.incrementAndGet();
+                    acumuladorDelta -= 1.0;
+                }
+
+                // Terminar si se alcanzó tiempo límite
+                if (contadorTick.get() >= controlador.getConfig().tiempoPartido) {
+                    controlador.getPartido().calcularGanadorPorFaltaDeTiempo();
+                    try {
+                        Thread.sleep(4000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+
+                // Terminar si hay ganador
+                if (controlador.getPartido().ganador != null) {
+                    if (estado.endsWith("win=" + controlador.getPartido().ganador.toString())) {
+                        try {
+                            Thread.sleep(4000);
+                        } catch (InterruptedException e) {
+                            break;
+                        }
+                        broadcast("DISCONNECT");
+                        break;
+                    }
+                }
+
+                // Esperar hasta el próximo tick (~60 FPS)
                 long sleep = TICK_NS - (System.nanoTime() - now);
                 if (sleep > 0) {
                     try {
                         Thread.sleep(sleep / 1_000_000);
                     } catch (InterruptedException ignored) {
-                        return;
+                        break;
                     }
                 }
             }
-        }, "Servidor-Tick").start();
+
+            partidaActiva = false;
+            hiloTick = null;
+        }, "Servidor-Tick");
+
+        hiloTick.start();
     }
+
 
     // ------------------------------------------------------------
     // CLIENTES

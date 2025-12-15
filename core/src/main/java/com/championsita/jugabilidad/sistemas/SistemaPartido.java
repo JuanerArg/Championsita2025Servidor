@@ -14,7 +14,7 @@ import static com.championsita.jugabilidad.modelo.HabilidadesEspeciales.EXTREMIS
 public class SistemaPartido {
     int notadorEquipo1 = 0;
     int notadorEquipo2 = 0;
-
+    public Equipo ganador;
 
 
     private ControladorDePartida controlador;
@@ -52,16 +52,26 @@ public class SistemaPartido {
     }
 
 
+    public void verificarSiGanoAlguien(){
+        if(notadorEquipo1 == controlador.getConfig().golesParaGanar){
+            ganador = Equipo.ROJO;
+        }else if(notadorEquipo2 == controlador.getConfig().golesParaGanar){
+            ganador = Equipo.AZUL;
+        }
+    }
+
     public boolean verificarSiHayGol(Pelota pelota, Cancha cancha) {
         if (this.checkGol(pelota, cancha.getArcoDerecho())) {
             System.out.println("Gol equipo 2!!");
             ++this.notadorEquipo1;
             this.reiniciarPelota(pelota);
+            verificarSiGanoAlguien();
             return true;
         } else if (this.checkGol(pelota, cancha.getArcoIzquierdo())) {
             System.out.println("Gol equipo 1!!");
             ++this.notadorEquipo2;
             this.reiniciarPelota(pelota);
+            verificarSiGanoAlguien();
             return true;
         }
 
@@ -111,6 +121,16 @@ public class SistemaPartido {
 
     public int getNotadorEquipo2(){
         return this.notadorEquipo2;
+    }
+
+    public void calcularGanadorPorFaltaDeTiempo() {
+        if(this.notadorEquipo1 > this.notadorEquipo2){
+            this.ganador = Equipo.ROJO;
+        }
+        if(this.notadorEquipo2 > this.notadorEquipo1){
+            this.ganador = Equipo.AZUL;
+        }
+        this.ganador = Equipo.EMPATE;
     }
 
     public enum EstadoPartido {

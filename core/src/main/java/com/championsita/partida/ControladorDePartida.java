@@ -52,6 +52,7 @@ public class ControladorDePartida {
     private SistemaFisico fisica;
     private SistemaColisiones colisiones;
     private SistemaPartido partido;
+    public int tiempo = 0;
 
     public ControladorDePartida(Config config) {
         this.config = config;
@@ -320,10 +321,19 @@ public class ControladorDePartida {
 
             int golesRojo  = partido.getNotadorEquipo1();  // Ajustá nombres de getters si hace falta
             int golesAzul  = partido.getNotadorEquipo2();
-
-            sb.append("HUD").append(",")
-                    .append("gr=").append(golesRojo).append(",")
-                    .append("ga=").append(golesAzul);
+            System.out.println(this.tiempo);
+            if (partido.ganador != null) {
+                sb.append("HUD").append(",")
+                        .append("gr=").append(golesRojo).append(",")
+                        .append("ga=").append(golesAzul).append(",")
+                        .append("time=").append(this.tiempo).append(",")
+                        .append("win=").append(partido.ganador.toString());
+            }else{
+                sb.append("HUD").append(",")
+                        .append("gr=").append(golesRojo).append(",")
+                        .append("ga=").append(golesAzul).append(",")
+                        .append("time=").append(this.tiempo);
+            }
         }
 
         return sb.toString();
