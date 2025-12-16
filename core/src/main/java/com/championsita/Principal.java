@@ -17,23 +17,6 @@ public class Principal {
 
         try {
             // ================================
-            // CREAR CONFIG MINIMA VÁLIDA
-            // ================================
-            Config config = new Config.Builder()
-                    .modo("1v1")
-                    .goles(1)
-                    .tiempo(60)
-                    .agregarEquipo(Equipo.ROJO)
-                    .agregarEquipo(Equipo.AZUL)
-                    .build();
-
-
-            // ================================
-            // CONTROLADOR DE PARTIDA
-            // ================================
-            ControladorDePartida controlador = new ControladorDePartida(config);
-
-            // ================================
             // HILO SERVIDOR UDP
             // ================================
             HiloServidor servidor = new HiloServidor();
